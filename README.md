@@ -6,6 +6,12 @@ This [Flask RESTPlus](https://flask-restplus.readthedocs.io/) application acts a
 APIs
 ----
 
+All APIs are documented using Swagger, and the system includes Swagger UI. e.g. when running in dev mode, you can go to:
+
+    http://localhost:5000/
+
+and you'll get a UI that describes the APIs. (This may not be directly visible in production, i.e. when running behind a proxy.)
+
 Currently, it provides the ARK and URL resolution services.
 
 ### ARK Resolver
