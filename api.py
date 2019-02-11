@@ -9,17 +9,26 @@ from access_api.kafka_client import CrawlLogConsumer
 from access_api.cdx import lookup_in_cdx
 from access_api.screenshots import get_rendered_original_stream
 
+# Get the core Flask setup working:
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('APP_SECRET', 'dev-mode-key')
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['CACHE_FOLDER'] = os.environ.get('CACHE_FOLDER', '__cache__')
 cache = FileSystemCache(os.path.join(app.config['CACHE_FOLDER'], 'request_cache'))
 
+
+# Define this here, before RESTplus loads:
+@app.route('/')
+def get_index():
+    return redirect('/apidoc/')
+
+
+# Now set up RESTplus:
 api = Api(app, version='1.0', title='UKWA API (PROTOTYPE)', doc='/apidoc/',
           description='API services for interacting with UKWA content. \
                       This is an early-stage prototype and may be changed without notice.')
-
-ns = api.namespace('access', description='Access operations')
+ns = api.namespace('access', description='Access Services')
+nss = api.namespace('stats', description='Statistics & Reporting')
 
 
 @ns.route('/resolve/<string:timestamp>/<path:url>')
@@ -37,20 +46,6 @@ class WaybackResolver(Resource):
 
         """
         return redirect('https://www.webarchive.org.uk/wayback/archive/%s/%s' % (timestamp, url), code=307)
-
-
-@ns.route('/crawler/recent-activity')
-class Crawler(Resource):
-    @ns.doc(id='get_recent_activity')
-    def get(self):
-        """
-        Summarise recent crawling activity
-
-        This returns a summary of recent crawling activity.
-        """
-        stats = self.consumer.get_stats()
-        return jsonify(stats)
-
 
 
 @ns.route('/screenshot/get-original')
@@ -99,6 +94,19 @@ class Screenshot(Resource):
         else:
             # Stream screenshots:
             return send_file(stream, mimetype=content_type)
+
+
+@nss.route('/crawler/recent-activity')
+class Crawler(Resource):
+    @nss.doc(id='get_recent_activity')
+    def get(self):
+        """
+        Summarise recent crawling activity
+
+        This returns a summary of recent crawling activity.
+        """
+        stats = self.consumer.get_stats()
+        return jsonify(stats)
 
 
 @app.before_first_request
