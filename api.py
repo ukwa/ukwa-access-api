@@ -54,6 +54,7 @@ class WaybackResolver(Resource):
 class Screenshot(Resource):
 
     @ns.doc(id='get_rendered_original')
+    @ns.produces(['image/png'])
     def get(self):
         """
         Grabs an crawl-time screenshot
