@@ -32,7 +32,8 @@ nss = api.namespace('stats', description='Statistics & Reporting')
 
 
 @ns.route('/resolve/<string:timestamp>/<path:url>')
-@ns.param('timestamp', 'Target timestamp in 14-digit format, e.g. 20170510120000. If unspecified, will direct to the most recent archived snapshot.', required=True, default='20170510120000')
+@ns.param('timestamp', 'Target timestamp in 14-digit format, e.g. 20170510120000. If unspecified, will direct to the most recent archived snapshot.',
+          required=True, default='20170510120000')
 @ns.param('url', 'URL to look up.', required=True, default='https://www.bl.uk/')
 class WaybackResolver(Resource):
     @ns.doc(id='get_wayback_resolver')
@@ -49,8 +50,8 @@ class WaybackResolver(Resource):
 
 
 @ns.route('/screenshot/get-original')
-@ns.param('url', 'URL to look up.', required=True, location='args', default ='https://www.bl.uk/')
-@ns.param('type', 'The type of screenshot', enum=['screenshot', 'thumbnail'], required=True, location='args', default='screenshot')
+@ns.param('url', 'URL to look up.', required=True, location='args', default='https://www.bl.uk/')
+@ns.param('type', 'The type of screenshot', enum=['screenshot', 'thumbnail'], required=False, location='args', default='screenshot')
 class Screenshot(Resource):
 
     @ns.doc(id='get_rendered_original')
@@ -97,6 +98,9 @@ class Screenshot(Resource):
             return send_file(stream, mimetype=content_type)
 
 
+global consumer
+
+
 @nss.route('/crawler/recent-activity')
 class Crawler(Resource):
     @nss.doc(id='get_recent_activity')
@@ -106,7 +110,8 @@ class Crawler(Resource):
 
         This returns a summary of recent crawling activity.
         """
-        stats = self.consumer.get_stats()
+        global consumer
+        stats = consumer.get_stats()
         return jsonify(stats)
 
 
@@ -117,6 +122,7 @@ def start_up_kafka_client():
     kafka_crawled_topic = os.environ.get('KAFKA_CRAWLED_TOPIC', 'uris.crawled.fc')
     kafka_seek_to_beginning = os.environ.get('KAFKA_SEEK_TO_BEGINNING', False)
     # Note that care needs to be taken us using Group IDs, or different workers see different parts of the logs
+    global consumer
     consumer = CrawlLogConsumer(
         kafka_crawled_topic, [kafka_broker], None,
         from_beginning=kafka_seek_to_beginning)
