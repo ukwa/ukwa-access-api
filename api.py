@@ -50,22 +50,28 @@ class WaybackResolver(Resource):
         return redirect('https://www.webarchive.org.uk/wayback/archive/%s/%s' % (timestamp, url), code=307)
 
 
-@ns.route('/screenshot/get-original')
+@ns.route('/screenshot/')
 @ns.param('url', 'URL to look up.', required=True, location='args', default='https://www.bbc.co.uk/news')
-@ns.param('type', 'The type of screenshot', enum=['thumbnail', 'screenshot'], required=False, location='args', default='thumbnail')
+@ns.param('source', 'The source of the screenshot', enum=['original', 'archive'], required=False, location='args', default='original')
+@ns.param('type', 'The type of screenshot to retrieve', enum=['thumbnail', 'screenshot'], required=False, location='args', default='thumbnail')
 class Screenshot(Resource):
 
     @ns.doc(id='get_rendered_original')
     @ns.produces(['image/png'])
     def get(self):
         """
-        Grabs an crawl-time screenshot
+        Grabs an screenshot of an archive web page.
 
-        This looks up a screenshot of a page, as it was rendered during the crawl.
+        This looks for a screenshot of a web page, returning the most recent by default.
+
+        If the <tt>source</tt> is set to <tt>original</tt> the system will \
+        attempt to fine a screenshot of the original web site, as seen at crawl time. If the <tt>source</tt> is set to \
+        <tt>archive</tt> then a rendering of the archived version of the page will be returned instead.
 
         """
         url = request.args.get('url')
         type = request.args.get('type', 'screenshot')
+        source = request.args.get('source', 'original')
 
         # Query URL
         qurl = "%s:%s" % (type, url)

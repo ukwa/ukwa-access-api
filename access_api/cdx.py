@@ -62,6 +62,7 @@ def lookup_in_cdx(qurl):
     if r.status_code == 200:
         try:
             dom = xml.dom.minidom.parseString(r.text)
+            found = None
             for result in dom.getElementsByTagName('result'):
                 file = result.getElementsByTagName('file')[0].firstChild.nodeValue
                 compressedoffset = result.getElementsByTagName('compressedoffset')[0].firstChild.nodeValue
@@ -70,7 +71,9 @@ def lookup_in_cdx(qurl):
                     compressedendoffset = result.getElementsByTagName('compressedendoffset')[0].firstChild.nodeValue
                 else:
                     compressedendoffset = None
-                return file, compressedoffset, compressedendoffset
+                found = file, compressedoffset, compressedendoffset
+            if found:
+                return found
         except Exception as e:
             pass
             #logger.error("Lookup failed for %s!" % qurl)
