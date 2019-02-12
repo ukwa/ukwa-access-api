@@ -24,6 +24,7 @@ def get_index():
 
 
 # Now set up RESTplus:
+app.config.SWAGGER_UI_DOC_EXPANSION = 'list'
 api = Api(app, version='1.0', title='UKWA API (PROTOTYPE)', doc='/apidoc/',
           description='API services for interacting with UKWA content. \
                       This is an early-stage prototype and may be changed without notice.')
@@ -50,8 +51,8 @@ class WaybackResolver(Resource):
 
 
 @ns.route('/screenshot/get-original')
-@ns.param('url', 'URL to look up.', required=True, location='args', default='https://www.bl.uk/')
-@ns.param('type', 'The type of screenshot', enum=['screenshot', 'thumbnail'], required=False, location='args', default='screenshot')
+@ns.param('url', 'URL to look up.', required=True, location='args', default='https://www.bbc.co.uk/news')
+@ns.param('type', 'The type of screenshot', enum=['thumbnail', 'screenshot'], required=False, location='args', default='thumbnail')
 class Screenshot(Resource):
 
     @ns.doc(id='get_rendered_original')
@@ -64,10 +65,7 @@ class Screenshot(Resource):
 
         """
         url = request.args.get('url')
-        #app.logger.debug("Got URL: %s" % url)
-        #
         type = request.args.get('type', 'screenshot')
-        #app.logger.debug("Got type: %s" % type)
 
         # Query URL
         qurl = "%s:%s" % (type, url)
