@@ -57,7 +57,7 @@ class WaybackResolver(Resource):
 class Screenshot(Resource):
 
     @ns.doc(id='get_rendered_original')
-    @ns.produces(['image/png'])
+    @ns.produces(['image/*'])
     def get(self):
         """
         Grabs an screenshot of an archive web page.
@@ -72,6 +72,9 @@ class Screenshot(Resource):
         url = request.args.get('url')
         type = request.args.get('type', 'screenshot')
         source = request.args.get('source', 'original')
+
+        # First check with a Wayback service to see if this URL is allowed:
+        # This defaults to the public OA service, to avoid accidentally making non-OA material available.
 
         # Query URL
         qurl = "%s:%s" % (type, url)
