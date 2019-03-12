@@ -4,6 +4,9 @@ import logging
 import threading
 from urllib.parse import urlsplit
 import time
+from flask import Flask
+from flask import render_template, redirect, url_for, flash, jsonify
+from werkzeug.contrib.cache import FileSystemCache
 from kafka import KafkaConsumer
 from threading import Thread
 from collections import OrderedDict, defaultdict, deque
@@ -137,7 +140,7 @@ class CrawlLogConsumer(Thread):
             for m in self.recent:
                 sc = str(m.get('status_code'))
                 if sc:
-                    status_codes[sc] += 10
+                    status_codes[sc] += 1
         # Sort by count:
         status_codes = sorted(status_codes.items(), key=lambda x: x[1], reverse=True)
         return status_codes
@@ -168,7 +171,6 @@ class CrawlLogConsumer(Thread):
                 up = True
             except Exception as e:
                 logger.exception("Failed to start CrawlLogConsumer!")
-                up = False
                 time.sleep(5)
 
         # And consume...

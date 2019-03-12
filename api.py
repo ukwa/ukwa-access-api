@@ -1,7 +1,7 @@
 import os
 import io
 
-from flask import Flask, redirect, url_for, jsonify, request, send_file, abort
+from flask import Flask, redirect, url_for, jsonify, request, send_file, abort, render_template, Response
 from flask_restplus import Resource, Api, fields
 from werkzeug.contrib.cache import FileSystemCache
 
@@ -10,7 +10,7 @@ from access_api.cdx import lookup_in_cdx
 from access_api.screenshots import get_rendered_original_stream
 
 # Get the core Flask setup working:
-app = Flask(__name__)
+app = Flask(__name__, template_folder='access_api/templates', static_folder='access_api/static')
 app.config['SECRET_KEY'] = os.environ.get('APP_SECRET', 'dev-mode-key')
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['CACHE_FOLDER'] = os.environ.get('CACHE_FOLDER', '__cache__')
@@ -20,7 +20,9 @@ cache = FileSystemCache(os.path.join(app.config['CACHE_FOLDER'], 'request_cache'
 # Define this here, before RESTplus loads:
 @app.route('/')
 def get_index():
-    return redirect('/apidoc/')
+    global consumer
+    stats = consumer.get_stats()
+    return render_template('index.html', title="Welcome", stats=stats)
 
 
 # Now set up RESTplus:
@@ -28,8 +30,31 @@ app.config.SWAGGER_UI_DOC_EXPANSION = 'list'
 api = Api(app, version='1.0', title='UKWA API (%s)' % os.environ.get('API_LABEL', 'TEST'), doc='/apidoc/',
           description='API services for interacting with UKWA content. \
                       This is an early-stage prototype and may be changed without notice.')
+
+# ------------------------------
+# Shared reference to Kafka consumer:
+# ------------------------------
+global consumer
+
+
+@app.before_first_request
+def start_up_kafka_client():
+    # Set up the crawl log sampler
+    kafka_broker = os.environ.get('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')
+    kafka_crawled_topic = os.environ.get('KAFKA_CRAWLED_TOPIC', 'uris.crawled.fc')
+    kafka_seek_to_beginning = os.environ.get('KAFKA_SEEK_TO_BEGINNING', False)
+    # Note that care needs to be taken us using Group IDs, or different workers see different parts of the logs
+    global consumer
+    consumer = CrawlLogConsumer(
+        kafka_crawled_topic, [kafka_broker], None,
+        from_beginning=kafka_seek_to_beginning)
+    consumer.start()
+
+
+# ------------------------------
+# Access Services
+# ------------------------------
 ns = api.namespace('access', description='Access Services')
-nss = api.namespace('stats', description='Statistics & Reporting')
 
 
 @ns.route('/resolve/<string:timestamp>/<path:url>')
@@ -51,7 +76,7 @@ class WaybackResolver(Resource):
 
 
 @ns.route('/screenshot/')
-@ns.param('url', 'URL to look up.', required=True, location='args', default='https://www.bbc.co.uk/news')
+@ns.param('url', 'URL to look up.', required=True, location='args', default='http://www.bbc.co.uk/news')
 @ns.param('source', 'The source of the screenshot', enum=['original', 'archive'], required=False, location='args', default='original')
 @ns.param('type', 'The type of screenshot to retrieve', enum=['thumbnail', 'screenshot'], required=False, location='args', default='thumbnail')
 class Screenshot(Resource):
@@ -60,9 +85,9 @@ class Screenshot(Resource):
     @ns.produces(['image/*'])
     def get(self):
         """
-        Grabs an screenshot of an archive web page.
+        Grabs an screenshot of an web page.
 
-        This looks for a screenshot of a web page, returning the most recent by default.
+        This looks for a screenshot of a web page, returning the most recent archived version by default.
 
         If the <tt>source</tt> is set to <tt>original</tt> the system will \
         attempt to fine a screenshot of the original web site, as seen at crawl time. If the <tt>source</tt> is set to \
@@ -105,7 +130,21 @@ class Screenshot(Resource):
             return send_file(stream, mimetype=content_type)
 
 
-global consumer
+@ns.route('/screenshots/')
+class Screenshots(Resource):
+
+    @ns.doc(id='get_screenshots_dashboard')
+    @ns.produces(['text/html'])
+    def get(self):
+        global consumer
+        stats = consumer.get_stats()
+        return Response(render_template('screenshots.html', title="Recent Screenshots", stats=stats), mimetype='text/html')
+
+
+# -------------------------------
+# Statistics & Reporting
+# -------------------------------
+nss = api.namespace('stats', description='Statistics & Reporting')
 
 
 @nss.route('/crawler/recent-activity')
@@ -120,20 +159,6 @@ class Crawler(Resource):
         global consumer
         stats = consumer.get_stats()
         return jsonify(stats)
-
-
-@app.before_first_request
-def start_up_kafka_client():
-    # Set up the crawl log sampler
-    kafka_broker = os.environ.get('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')
-    kafka_crawled_topic = os.environ.get('KAFKA_CRAWLED_TOPIC', 'uris.crawled.fc')
-    kafka_seek_to_beginning = os.environ.get('KAFKA_SEEK_TO_BEGINNING', False)
-    # Note that care needs to be taken us using Group IDs, or different workers see different parts of the logs
-    global consumer
-    consumer = CrawlLogConsumer(
-        kafka_crawled_topic, [kafka_broker], None,
-        from_beginning=kafka_seek_to_beginning)
-    consumer.start()
 
 
 if __name__ == '__main__':

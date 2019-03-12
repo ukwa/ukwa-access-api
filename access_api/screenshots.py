@@ -55,7 +55,7 @@ def get_rendered_original_stream(warc_filename, warc_offset, compressedendoffset
     return record.raw_stream, record.content_type
 
 
-def lookup_in_cdx(qurl, target_date=datetime.datetime.now()):
+def lookup_in_cdx(qurl, target_date=None):
     """
     Checks if a resource is in the CDX index, closest to a specific date:
 
@@ -65,17 +65,25 @@ def lookup_in_cdx(qurl, target_date=datetime.datetime.now()):
     if len(matches) == 0:
         return None, None, None
 
+    # Set up default:
+    if target_date is None:
+        target_date = datetime.datetime.now()
+
     # Go through looking for the closest match:
     matched_date = None
     matched_ts = None
     for ts in matches:
         wb_date = datetime.datetime.strptime(ts, WAYBACK_TS_FORMAT)
-        #logger.warning("MATCHING: %s %s %i %i" %(matched_date, target_date, (wb_date-target_date).total_seconds(), (matched_date-target_date).total_seconds()))
+        logger.debug("MATCHING: %s %s %s %s" %(matched_date, target_date, wb_date, ts))
+        logger.debug("DELTA:THIS: %i" %(wb_date-target_date).total_seconds())
+        if matched_date:
+            logger.debug("DELTA:MATCH: %i" % (matched_date-target_date).total_seconds())
         if matched_date is None or abs((wb_date-target_date).total_seconds()) < \
                 abs((matched_date-target_date).total_seconds()):
             matched_date = wb_date
             matched_ts = ts
-        #logger.warning("MATCHED: %s %s" %(matched_date, ts))
+            logger.debug("MATCHED: %s %s" %(matched_date, ts))
+        logger.debug("FINAL MATCH: %s %s" %(matched_date, ts))
 
     return matches[matched_ts]
 
