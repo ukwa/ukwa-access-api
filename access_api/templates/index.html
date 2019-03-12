@@ -15,7 +15,7 @@
     <div class="pure-g">
 {% for url, timestamp in stats.screenshots[:8] %}
         <div class="pure-u-1-4" style="max-height:150px; overflow:hidden;">
-            <a href="{{ url_for('get_rendered_original', url=url, target_date=timestamp) }}">
+            <a href="{{ url_for('access_screenshot', url=url, target_date=timestamp) }}">
                 <img class="pure-img-responsive" src="{{ url_for('access_screenshot', url=url, type='thumbnail', target_date=timestamp) }}" alt="Screenshot of {{ url }}">
             </a>
         </div>
