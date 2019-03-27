@@ -78,7 +78,8 @@ class WaybackResolver(Resource):
 @ns.route('/screenshot/')
 @ns.param('url', 'URL to look up.', required=True, location='args', default='http://www.bbc.co.uk/news')
 @ns.param('source', 'The source of the screenshot', enum=['original', 'archive'], required=False, location='args', default='original')
-@ns.param('type', 'The type of screenshot to retrieve', enum=['thumbnail', 'screenshot'], required=False, location='args', default='thumbnail')
+@ns.param('type', 'The type of screenshot to retrieve', enum=['thumbnail', 'screenshot', 'har', 'onreadydom', 'imagemap', 'pdf'],
+          required=False, location='args', default='thumbnail')
 class Screenshot(Resource):
 
     @ns.doc(id='get_rendered_original')
@@ -92,6 +93,8 @@ class Screenshot(Resource):
         If the <tt>source</tt> is set to <tt>original</tt> the system will \
         attempt to fine a screenshot of the original web site, as seen at crawl time. If the <tt>source</tt> is set to \
         <tt>archive</tt> then a rendering of the archived version of the page will be returned instead.
+
+        All seeds should have a <tt>screenshot</tt> - the other rendered types are usually present with the exception of 'pdf' which is under development.
 
         """
         url = request.args.get('url')
@@ -159,6 +162,30 @@ class Crawler(Resource):
         global consumer
         stats = consumer.get_stats()
         return jsonify(stats)
+
+
+# ------------------------------
+# Save This Page Service
+# ------------------------------
+nsn = api.namespace('save', description='"Save This Page" Service')
+
+
+@nsn.route('/<path:url>')
+class SaveThisPage(Resource):
+    @nss.doc(id='save_this_page')
+    def get(self, url):
+        """
+        Save This Page service.
+
+        Use this to request a URL be saved. If it's in scope for the UK Web Archive, it will be queued for crawling ASAP. If it's out of scope if will be logged for review, to see if we can include in in future.
+
+        Either way, the URL will also be posted to the Internet Archive URL Save This Page service as well.
+
+        """
+        # First enqueue for crawl, if configured:
+        # Then also submit request to IA
+        ia_save_url = "https://web.archive.org/save/%s" % url
+        return jsonify("OK: url = %s" % url)
 
 
 if __name__ == '__main__':
