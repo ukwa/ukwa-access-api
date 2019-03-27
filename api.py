@@ -175,7 +175,17 @@ nsn = api.namespace('save', description='"Save This Page" Service')
 @nsn.route('/<path:url>')
 class SaveThisPage(Resource):
 
-    enqueue = KafkaLauncher('crawler02.bl.uk:9094', 'fc.candidates')
+    kafka_launcher = None
+
+    def launcher(self, url):
+        if self.kafka_launcher is None:
+            broker = os.environ.get('KAFKA_LAUNCH_BROKER', None)
+            topic = os.environ.get('KAFKA_LAUNCH_TOPIC', 'fc.candidates')
+            if broker:
+                self.kafka_launcher = KafkaLauncher(broker, topic)
+
+        # And set enqueue:
+        self.kafka_launcher.launch(url, "save-this-page", webrender_this=True, launch_ts='now', inherit_launch_ts=False)
 
     @nss.doc(id='save_this_page')
     def get(self, url):
@@ -190,7 +200,7 @@ class SaveThisPage(Resource):
         result = {'save_url': url }
         # First enqueue for crawl, if configured:
         try:
-            self.enqueue.launch(url, "save-this-page", webrender_this=True, launch_ts='now', inherit_launch_ts=False)
+            self.launcher(url)
             result['ukwa'] = 'crawl-requested'
         except Exception as e:
             result['ukwa'] = 'crawl-request-failed: %s' % e
