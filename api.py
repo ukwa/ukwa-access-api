@@ -185,7 +185,7 @@ class SaveThisPage(Resource):
                 self.kafka_launcher = KafkaLauncher(broker, topic)
 
         # And set enqueue:
-        self.kafka_launcher.launch(url, "save-this-page", webrender_this=True, launch_ts='now', inherit_launch_ts=False)
+        self.kafka_launcher.launch(url, "save-page-now", webrender_this=True, launch_ts='now', inherit_launch_ts=False)
 
     @nss.doc(id='save_this_page')
     def get(self, url):
@@ -197,23 +197,23 @@ class SaveThisPage(Resource):
         Either way, the URL will also be posted to the Internet Archive URL Save This Page service as well.
 
         """
-        result = {'save_url': url }
+        sr = { 'url': url, 'result': {} }
         # First enqueue for crawl, if configured:
         try:
             self.launcher(url)
-            result['ukwa'] = 'crawl-requested'
+            sr['result']['ukwa'] = {'event': 'save-page-now',  'status': '201 Crawl Requested' }
         except Exception as e:
-            result['ukwa'] = 'crawl-request-failed: %s' % e
+            sr['result']['ukwa'] = {'event': 'save-page-now', 'error': e }
 
         # Then also submit request to IA
         try:
             ia_save_url = "https://web.archive.org/save/%s" % url
             r = requests.get(ia_save_url)
-            result['ia'] = 'crawl-requested status=%i' % r.status_code
+            sr['result']['ia'] = {'event': 'save-page-now',  'status': r.status_code }
         except Exception as e:
-            result['ia'] = 'crawl-request-failed: %s' % e
+            sr['result']['ia'] = {'event': 'save-page-now', 'error': e }
 
-        return jsonify(result)
+        return jsonify(sr)
 
 
 if __name__ == '__main__':
