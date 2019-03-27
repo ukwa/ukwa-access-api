@@ -1,5 +1,6 @@
 import os
 import io
+import requests
 
 from flask import Flask, redirect, url_for, jsonify, request, send_file, abort, render_template, Response
 from flask_restplus import Resource, Api, fields
@@ -8,6 +9,7 @@ from werkzeug.contrib.cache import FileSystemCache
 from access_api.kafka_client import CrawlLogConsumer
 from access_api.cdx import lookup_in_cdx
 from access_api.screenshots import get_rendered_original_stream
+from access_api.save import KafkaLauncher
 
 # Get the core Flask setup working:
 app = Flask(__name__, template_folder='access_api/templates', static_folder='access_api/static')
@@ -172,6 +174,9 @@ nsn = api.namespace('save', description='"Save This Page" Service')
 
 @nsn.route('/<path:url>')
 class SaveThisPage(Resource):
+
+    enqueue = KafkaLauncher('crawler02.bl.uk:9094', 'fc.candidates')
+
     @nss.doc(id='save_this_page')
     def get(self, url):
         """
@@ -182,10 +187,23 @@ class SaveThisPage(Resource):
         Either way, the URL will also be posted to the Internet Archive URL Save This Page service as well.
 
         """
+        result = {'save_url': url }
         # First enqueue for crawl, if configured:
+        try:
+            self.enqueue.launch(url, "save-this-page", webrender_this=True, launch_ts='now', inherit_launch_ts=False)
+            result['ukwa'] = 'crawl-requested'
+        except Exception as e:
+            result['ukwa'] = 'crawl-request-failed: %s' % e
+
         # Then also submit request to IA
-        ia_save_url = "https://web.archive.org/save/%s" % url
-        return jsonify("OK: url = %s" % url)
+        try:
+            ia_save_url = "https://web.archive.org/save/%s" % url
+            r = requests.get(ia_save_url)
+            result['ia'] = 'crawl-requested status=%i' % r.status_code
+        except Exception as e:
+            result['ia'] = 'crawl-request-failed: %s' % e
+
+        return jsonify(result)
 
 
 if __name__ == '__main__':
