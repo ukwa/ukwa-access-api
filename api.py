@@ -7,7 +7,7 @@ from flask_restplus import Resource, Api, fields
 from werkzeug.contrib.cache import FileSystemCache
 
 from access_api.kafka_client import CrawlLogConsumer
-from access_api.cdx import lookup_in_cdx
+from access_api.cdx import lookup_in_cdx, list_from_cdx
 from access_api.screenshots import get_rendered_original_stream
 from access_api.save import KafkaLauncher
 
@@ -17,6 +17,9 @@ app.config['SECRET_KEY'] = os.environ.get('APP_SECRET', 'dev-mode-key')
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['CACHE_FOLDER'] = os.environ.get('CACHE_FOLDER', '__cache__')
 cache = FileSystemCache(os.path.join(app.config['CACHE_FOLDER'], 'request_cache'))
+
+# Get the Wayback endpoint to check for access rights:
+WAYBACK_SERVER = os.environ.get("WAYBACK_SERVER", "https://www.webarchive.org.uk/wayback/archive/")
 
 
 # Define this here, before RESTplus loads:
@@ -82,6 +85,7 @@ class WaybackResolver(Resource):
 @ns.param('source', 'The source of the screenshot', enum=['original', 'archive'], required=False, location='args', default='original')
 @ns.param('type', 'The type of screenshot to retrieve', enum=['thumbnail', 'screenshot', 'har', 'onreadydom', 'imagemap', 'pdf'],
           required=False, location='args', default='thumbnail')
+@ns.param('timestamp', 'The target date and time to use, as a 14-character (Wayback-style) timestamp (e.g. 20190101120000)', required=False, location='args' )
 class Screenshot(Resource):
 
     @ns.doc(id='get_rendered_original')
@@ -102,9 +106,13 @@ class Screenshot(Resource):
         url = request.args.get('url')
         type = request.args.get('type', 'screenshot')
         source = request.args.get('source', 'original')
+        target_date = request.args.get('timestamp', None)
 
         # First check with a Wayback service to see if this URL is allowed:
         # This defaults to the public OA service, to avoid accidentally making non-OA material available.
+        r = requests.get("%s%s" %(WAYBACK_SERVER, url))
+        if r.status_code < 200 or r.status_code >= 400:
+            abort(Response(r.reason, status=r.status_code))
 
         # Query URL
         qurl = "%s:%s" % (type, url)
@@ -115,15 +123,22 @@ class Screenshot(Resource):
             #app.logger.info("Found in cache: %s" % qurl)
             return send_file(io.BytesIO(result['payload']), mimetype=result['content_type'])
 
-        # Query CDX Server for the item
-        (warc_filename, warc_offset, compressed_end_offset) = lookup_in_cdx(qurl)
+        # For originals:
+        if source == 'original':
+            # Query CDX Server for the item
+            (warc_filename, warc_offset, compressed_end_offset) = lookup_in_cdx(qurl, target_date)
 
-        # If not found, say so:
-        if warc_filename is None:
-            abort(404)
+            # If not found, say so:
+            if warc_filename is None:
+                abort(404)
 
-        # Grab the payload from the WARC and return it.
-        stream, content_type = get_rendered_original_stream(warc_filename,warc_offset, compressed_end_offset)
+            # Grab the payload from the WARC and return it.
+            stream, content_type = get_rendered_original_stream(warc_filename,warc_offset, compressed_end_offset)
+        else:
+            # Get rendered version from internal API
+            r = requests.get("http://webrender:8010/render", params={ 'url': url, 'show_screenshot': True, 'target_date': target_date })
+            stream = io.BytesIO(r.content)
+            content_type = "image/png"
 
         # Cache thumbnails:
         if type == 'thumbnail':
@@ -135,7 +150,45 @@ class Screenshot(Resource):
             return send_file(stream, mimetype=content_type)
 
 
-@ns.route('/screenshots/')
+@ns.route('/screenshot/list')
+@ns.param('url', 'URL to look up.', required=True, location='args', default='http://www.bbc.co.uk/news')
+@ns.param('source', 'The source of the screenshot', enum=['original', 'archive'], required=False, location='args', default='original')
+@ns.param('type', 'The type of screenshot to retrieve', enum=['thumbnail', 'screenshot', 'har', 'onreadydom', 'imagemap', 'pdf'],
+          location='args', required=False, default='thumbnail')
+class Screenshot(Resource):
+
+    @ns.doc(id='get_screenshot_list')
+    def get(self):
+        """
+        Lists the available crawl-time screenshots
+        """
+        url = request.args.get('url')
+        type = request.args.get('type', 'screenshot')
+        source = request.args.get('source', 'original')
+
+        # First check with a Wayback service to see if this URL is allowed:
+        # This defaults to the public OA service, to avoid accidentally making non-OA material available.
+        r = requests.get("%s%s" %(WAYBACK_SERVER, url))
+        if r.status_code < 200 or r.status_code >= 400:
+            abort(Response(r.reason, status=r.status_code))
+
+        # Query URL
+        if source == 'original':
+            qurl = "%s:%s" % (type, url)
+
+            return jsonify(list_from_cdx(qurl))
+        else:
+            return jsonify(list_from_cdx(url))
+
+
+
+# -------------------------------
+# Statistics & Reporting
+# -------------------------------
+nss = api.namespace('stats', description='Statistics & Reporting')
+
+
+@nss.route('/crawler/recent-screenshots')
 class Screenshots(Resource):
 
     @ns.doc(id='get_screenshots_dashboard')
@@ -144,12 +197,6 @@ class Screenshots(Resource):
         global consumer
         stats = consumer.get_stats()
         return Response(render_template('screenshots.html', title="Recent Screenshots", stats=stats), mimetype='text/html')
-
-
-# -------------------------------
-# Statistics & Reporting
-# -------------------------------
-nss = api.namespace('stats', description='Statistics & Reporting')
 
 
 @nss.route('/crawler/recent-activity')
@@ -201,17 +248,17 @@ class SaveThisPage(Resource):
         # First enqueue for crawl, if configured:
         try:
             self.launcher(url)
-            sr['result']['ukwa'] = {'event': 'save-page-now',  'status': '201 Crawl Requested' }
+            sr['result']['ukwa'] = {'event': 'save-page-now',  'status': 201, 'reason': 'Crawl Requested' }
         except Exception as e:
-            sr['result']['ukwa'] = {'event': 'save-page-now', 'error': e }
+            sr['result']['ukwa'] = {'event': 'save-page-now', 'status': 500, 'reason': e }
 
         # Then also submit request to IA
         try:
             ia_save_url = "https://web.archive.org/save/%s" % url
             r = requests.get(ia_save_url)
-            sr['result']['ia'] = {'event': 'save-page-now',  'status': r.status_code }
+            sr['result']['ia'] = {'event': 'save-page-now',  'status': r.status_code, 'reason': r.reason }
         except Exception as e:
-            sr['result']['ia'] = {'event': 'save-page-now', 'error': e }
+            sr['result']['ia'] = {'event': 'save-page-now', 'status': 500, 'reason': e }
 
         return jsonify(sr)
 
