@@ -6,6 +6,13 @@ from flask import Flask, redirect, url_for, jsonify, request, send_file, abort, 
 from flask_restplus import Resource, Api, fields
 from werkzeug.contrib.cache import FileSystemCache
 
+try:
+    # Werkzeug 0.15 and newer
+    from werkzeug.middleware.proxy_fix import ProxyFix
+except ImportError:
+    # older releases
+    from werkzeug.contrib.fixers import ProxyFix
+
 from access_api.kafka_client import CrawlLogConsumer
 from access_api.cdx import lookup_in_cdx, list_from_cdx
 from access_api.screenshots import get_rendered_original_stream
@@ -13,6 +20,7 @@ from access_api.save import KafkaLauncher
 
 # Get the core Flask setup working:
 app = Flask(__name__, template_folder='access_api/templates', static_folder='access_api/static')
+app.wsgi_app = ProxyFix(app.wsgi_app) # For https://stackoverflow.com/questions/23347387/x-forwarded-proto-and-flask X-Forwarded-Proto
 app.config['SECRET_KEY'] = os.environ.get('APP_SECRET', 'dev-mode-key')
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['CACHE_FOLDER'] = os.environ.get('CACHE_FOLDER', '__cache__')
