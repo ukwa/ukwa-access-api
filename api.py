@@ -127,14 +127,15 @@ class Screenshot(Resource):
         if r.status_code < 200 or r.status_code >= 400:
             abort(Response(r.reason, status=r.status_code))
 
-        # Query URL
-        qurl = "%s:%s" % (type, url)
-
         # Check the cache:
-        result = cache.get(qurl)
+        cache_tag = "%s:%s:%s:%s" % (target_date, source, type, url)
+        result = cache.get(cache_tag)
         if result is not None:
             #app.logger.info("Found in cache: %s" % qurl)
             return send_file(io.BytesIO(result['payload']), mimetype=result['content_type'])
+
+        # Query URL
+        qurl = "%s:%s" % (type, url)
 
         # For originals:
         if source == 'original':
