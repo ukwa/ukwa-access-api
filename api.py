@@ -21,6 +21,11 @@ cache = FileSystemCache(os.path.join(app.config['CACHE_FOLDER'], 'request_cache'
 # Get the Wayback endpoint to check for access rights:
 WAYBACK_SERVER = os.environ.get("WAYBACK_SERVER", "https://www.webarchive.org.uk/wayback/archive/")
 
+# Get the location of the web rendering server:
+WEBRENDER_ARCHIVE_SERVER= os.environ.get("WEBRENDER_ARCHIVE_SERVER", "http://webrender:8010/render")
+
+# Example URL to use
+EXAMPLE_URL = "http://portico.bl.uk/"
 
 # Define this here, before RESTplus loads:
 @app.route('/')
@@ -81,7 +86,7 @@ class WaybackResolver(Resource):
 
 
 @ns.route('/screenshot/')
-@ns.param('url', 'URL to look up.', required=True, location='args', default='http://www.bbc.co.uk/news')
+@ns.param('url', 'URL to look up.', required=True, location='args', default=EXAMPLE_URL)
 @ns.param('source', 'The source of the screenshot', enum=['original', 'archive'], required=False, location='args', default='original')
 @ns.param('type', 'The type of screenshot to retrieve', enum=['thumbnail', 'screenshot', 'har', 'onreadydom', 'imagemap', 'pdf'],
           required=False, location='args', default='thumbnail')
@@ -136,7 +141,8 @@ class Screenshot(Resource):
             stream, content_type = get_rendered_original_stream(warc_filename,warc_offset, compressed_end_offset)
         else:
             # Get rendered version from internal API
-            r = requests.get("http://webrender:8010/render", params={ 'url': url, 'show_screenshot': True, 'target_date': target_date })
+            r = requests.get(WEBRENDER_ARCHIVE_SERVER,
+                             params={ 'url': url, 'show_screenshot': True, 'target_date': target_date })
             stream = io.BytesIO(r.content)
             content_type = "image/png"
 
@@ -151,7 +157,7 @@ class Screenshot(Resource):
 
 
 @ns.route('/screenshot/list')
-@ns.param('url', 'URL to look up.', required=True, location='args', default='http://www.bbc.co.uk/news')
+@ns.param('url', 'URL to look up.', required=True, location='args', default=EXAMPLE_URL)
 @ns.param('source', 'The source of the screenshot', enum=['original', 'archive'], required=False, location='args', default='original')
 @ns.param('type', 'The type of screenshot to retrieve', enum=['thumbnail', 'screenshot', 'har', 'onreadydom', 'imagemap', 'pdf'],
           location='args', required=False, default='thumbnail')
