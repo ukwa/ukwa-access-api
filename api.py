@@ -49,6 +49,18 @@ api = Api(app, version='1.0', title='UKWA API (%s)' % os.environ.get('API_LABEL'
           description='API services for interacting with UKWA content. \
                       This is an early-stage prototype and may be changed without notice.')
 
+
+class RenderedPageSchema(fields.Raw):
+    __schema_type__ = 'file'
+    __schema_format__ = 'A rendered version of the given URL.'
+
+
+class JsonOrFileSchema(fields.Raw):
+    __schema_type__ = 'file'
+    __schema_format__ = 'A JSON object describing the location of the rendered item, or the rendered ' \
+                        'version of the original URL. Determined via content negociation.'
+
+
 # ------------------------------
 # Shared reference to Kafka consumer:
 # ------------------------------
@@ -98,11 +110,12 @@ class WaybackResolver(Resource):
 @ns.param('source', 'The source of the screenshot', enum=['original', 'archive'], required=False, location='args', default='original')
 @ns.param('type', 'The type of screenshot to retrieve', enum=['thumbnail', 'screenshot', 'har', 'onreadydom', 'imagemap', 'pdf'],
           required=False, location='args', default='thumbnail')
-@ns.param('timestamp', 'The target date and time to use, as a 14-character (Wayback-style) timestamp (e.g. 20190101120000)', required=False, location='args' )
+@ns.param('target_date', 'The target date and time to use, as a 14-character (Wayback-style) timestamp (e.g. 20190101120000)', required=False, location='args' )
 class Screenshot(Resource):
 
-    @ns.doc(id='get_rendered_original')
+    @ns.doc(id='get_rendered_original', model=RenderedPageSchema)
     @ns.produces(['image/*'])
+    @ns.response(404, 'No screenshot for that url has been captured during crawls.')
     def get(self):
         """
         Grabs an screenshot of an web page.
@@ -119,7 +132,7 @@ class Screenshot(Resource):
         url = request.args.get('url')
         type = request.args.get('type', 'screenshot')
         source = request.args.get('source', 'original')
-        target_date = request.args.get('timestamp', None)
+        target_date = request.args.get('target_date', None)
 
         # First check with a Wayback service to see if this URL is allowed:
         # This defaults to the public OA service, to avoid accidentally making non-OA material available.
