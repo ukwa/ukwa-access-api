@@ -168,14 +168,10 @@ class Screenshot(Resource):
             stream = io.BytesIO(r.content)
             content_type = "image/png"
 
-        # Cache thumbnails:
-        if type == 'thumbnail':
-            payload = stream.read()
-            cache.set(qurl, {'payload': payload, 'content_type': content_type}, timeout=60*60)
-            return send_file(io.BytesIO(payload), mimetype=content_type)
-        else:
-            # Stream screenshots:
-            return send_file(stream, mimetype=content_type)
+        # Cache and return:
+        payload = stream.read()
+        cache.set(qurl, {'payload': payload, 'content_type': content_type}, timeout=60*60)
+        return send_file(io.BytesIO(payload), mimetype=content_type)
 
 
 @ns.route('/screenshot/list')
