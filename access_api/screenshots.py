@@ -65,7 +65,7 @@ def full_and_thumb_jpegs(large_png, crop=False):
     w, h = img.size
     logger.debug("IMAGE %i x %x" % (w, h))
     if crop and h > 640:
-        img.crop((0,0,w,640))
+        img = img.crop((0,0,w,640))
 
     # Save it as a JPEG:
     out = io.BytesIO()
