@@ -15,7 +15,7 @@ except ImportError:
 
 from access_api.kafka_client import CrawlLogConsumer
 from access_api.cdx import lookup_in_cdx, list_from_cdx
-from access_api.screenshots import get_rendered_original_stream
+from access_api.screenshots import get_rendered_original_stream, full_and_thumb_jpegs
 from access_api.save import KafkaLauncher
 
 # Get the core Flask setup working:
@@ -168,10 +168,16 @@ class Screenshot(Resource):
             stream = io.BytesIO(r.content)
             content_type = "image/png"
 
+        # Get the image:
+        png_data = stream.read()
+
+        # Crop
+        full_jpeg, thumb_jpeg = full_and_thumb_jpegs(png_data, crop=True)
+        content_type = "image/jpeg"
+
         # Cache and return:
-        payload = stream.read()
-        cache.set(cache_tag, {'payload': payload, 'content_type': content_type}, timeout=60*60)
-        return send_file(io.BytesIO(payload), mimetype=content_type)
+        cache.set(cache_tag, {'payload': full_jpeg, 'content_type': content_type}, timeout=60*60)
+        return send_file(io.BytesIO(full_jpeg), mimetype=content_type)
 
 
 @ns.route('/screenshot/list')
