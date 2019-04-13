@@ -81,6 +81,12 @@ def start_up_kafka_client():
     consumer.start()
 
 
+@app.after_request
+def allow_cross_origin_usage(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    return response
+
+
 # ------------------------------
 # Access Services
 # ------------------------------
