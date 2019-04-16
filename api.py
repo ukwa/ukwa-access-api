@@ -24,7 +24,9 @@ app.wsgi_app = ProxyFix(app.wsgi_app) # For https://stackoverflow.com/questions/
 app.config['SECRET_KEY'] = os.environ.get('APP_SECRET', 'dev-mode-key')
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['CACHE_FOLDER'] = os.environ.get('CACHE_FOLDER', '__cache__')
-cache = FileSystemCache(os.path.join(app.config['CACHE_FOLDER'], 'request_cache'))
+
+# Set up a persistent cache for screenshots etc.
+screenshot_cache = FileSystemCache(os.path.join(app.config['CACHE_FOLDER'], 'screenshot_cache'), threshold=0, default_timeout=0)
 
 # Get the Wayback endpoint to check for access rights:
 WAYBACK_SERVER = os.environ.get("WAYBACK_SERVER", "https://www.webarchive.org.uk/wayback/archive/")
@@ -148,7 +150,7 @@ class Screenshot(Resource):
 
         # Check the cache:
         cache_tag = "%s:%s:%s:%s" % (target_date, source, type, url)
-        result = cache.get(cache_tag)
+        result = screenshot_cache.get(cache_tag)
         if result is not None:
             #app.logger.info("Found in cache: %s" % qurl)
             return send_file(io.BytesIO(result['payload']), mimetype=result['content_type'])
@@ -182,7 +184,7 @@ class Screenshot(Resource):
         content_type = "image/jpeg"
 
         # Cache and return:
-        cache.set(cache_tag, {'payload': full_jpeg, 'content_type': content_type}, timeout=60*60)
+        screenshot_cache.set(cache_tag, {'payload': full_jpeg, 'content_type': content_type}, timeout=60*60)
         return send_file(io.BytesIO(full_jpeg), mimetype=content_type)
 
 
