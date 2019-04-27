@@ -76,6 +76,7 @@ class CrawlLogConsumer(Thread):
         self.recentLock = threading.Lock()
         # Information on the most recent hosts:
         self.hosts = LimitedSizeDict(size_limit=os.environ.get("MAX_HOSTS_MEMORY", 500))
+        self.hostsLock = threading.Lock()
 
     def process_message(self, message):
         try:
@@ -101,7 +102,8 @@ class CrawlLogConsumer(Thread):
             host = self.get_host(url)
             if host:
                 hs = self.hosts.get(host, defaultdict(lambda: defaultdict(int)))
-                self.hosts[host] = hs
+                with self.hostsLock:
+                    self.hosts[host] = hs
 
                 # Basics
                 hs['stats']['total'] += 1
@@ -150,12 +152,13 @@ class CrawlLogConsumer(Thread):
         with self.screenshotsLock:
             shots = list(self.screenshots)
             shots.sort(key=lambda shot: shot[1], reverse=True)
-        return {
-            'last_timestamp': self.last_timestamp,
-            'status_codes': self.get_status_codes(),
-            'screenshots': shots,
-            'hosts': self.hosts
-        }
+        with self.hostsLock:
+            return {
+                'last_timestamp': self.last_timestamp,
+                'status_codes': self.get_status_codes(),
+                'screenshots': shots,
+                'hosts': self.hosts
+            }
 
     def run(self):
         # Set up a consumer:
