@@ -251,7 +251,7 @@ class Crawler(Resource):
         try:
             return jsonify(stats)
         except Exception as e:
-            logger.exception("Could not jsonify stats: %s" % stats)
+            app.logger.exception("Could not jsonify stats: %s" % stats)
 
 
 # ------------------------------
