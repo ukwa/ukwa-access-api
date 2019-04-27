@@ -69,13 +69,13 @@ class CrawlLogConsumer(Thread):
         # The last event timestamp we saw
         self.last_timestamp = None
         # Details of the most recent screenshots:
-        self.screenshots = deque(maxlen=100)
+        self.screenshots = deque(maxlen=os.environ.get("MAX_SCREENSHOTS_MEMORY", 100))
         self.screenshotsLock = threading.Lock()
         # This is used to hold the last 1000 messages, for tail analysis
-        self.recent = deque(maxlen=10000)
+        self.recent = deque(maxlen=os.environ.get("MAX_LOG_MEMORY", 10000))
         self.recentLock = threading.Lock()
         # Information on the most recent hosts:
-        self.hosts = LimitedSizeDict(size_limit=100)
+        self.hosts = LimitedSizeDict(size_limit=os.environ.get("MAX_HOSTS_MEMORY", 500))
 
     def process_message(self, message):
         try:
