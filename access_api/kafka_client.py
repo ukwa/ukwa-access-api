@@ -101,31 +101,31 @@ class CrawlLogConsumer(Thread):
             # Host info:
             host = self.get_host(url)
             if host:
-                hs = self.hosts.get(host, defaultdict(lambda: defaultdict(int)))
                 with self.hostsLock:
+                    hs = self.hosts.get(host, defaultdict(lambda: defaultdict(int)))
                     self.hosts[host] = hs
 
-                # Basics
-                hs['stats']['total'] += 1
-                hs['stats']['last_timestamp']  = m['timestamp']
+                    # Basics
+                    hs['stats']['total'] += 1
+                    hs['stats']['last_timestamp']  = m['timestamp']
 
-                # Mime types:
-                mimetype = m.get('mimetype', None)
-                if not mimetype:
-                    mimetype = m.get('content_type', 'unknown-content-type')
-                hs['content_types'][mimetype] += 1
+                    # Mime types:
+                    mimetype = m.get('mimetype', None)
+                    if not mimetype:
+                        mimetype = m.get('content_type', 'unknown-content-type')
+                    hs['content_types'][mimetype] += 1
 
-                # Status Codes:
-                sc = str(m.get('status_code'))
-                if not sc:
-                    print(json.dumps(m, indent=2))
-                    sc = "-"
-                hs['status_codes'][sc] += 1
+                    # Status Codes:
+                    sc = str(m.get('status_code'))
+                    if not sc:
+                        print(json.dumps(m, indent=2))
+                        sc = "-"
+                    hs['status_codes'][sc] += 1
 
-                # Via
-                via_host = self.get_host(m.get('via', None))
-                if via_host and host != via_host:
-                    hs['via'][via_host] += 1
+                    # Via
+                    via_host = self.get_host(m.get('via', None))
+                    if via_host and host != via_host:
+                        hs['via'][via_host] += 1
 
         except Exception as e:
             logger.exception("Could not process message %s" % message)

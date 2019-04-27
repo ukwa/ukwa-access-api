@@ -248,7 +248,10 @@ class Crawler(Resource):
         """
         global consumer
         stats = consumer.get_stats()
-        return jsonify(stats)
+        try:
+            return jsonify(stats)
+        except Exception as e:
+            logger.exception("Could not jsonify stats: %s" % stats)
 
 
 # ------------------------------
