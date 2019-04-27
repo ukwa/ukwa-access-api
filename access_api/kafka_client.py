@@ -9,7 +9,7 @@ from flask import render_template, redirect, url_for, flash, jsonify
 from werkzeug.contrib.cache import FileSystemCache
 from kafka import KafkaConsumer
 from threading import Thread
-from collections import OrderedDict, defaultdict, deque
+from collections import OrderedDict, deque
 
 logger = logging.getLogger(__name__)
 
@@ -102,30 +102,37 @@ class CrawlLogConsumer(Thread):
             host = self.get_host(url)
             if host:
                 with self.hostsLock:
-                    hs = self.hosts.get(host, defaultdict(lambda: defaultdict(int)))
-                    self.hosts[host] = hs
+                    hs = self.hosts.get(host, None)
+                    if hs is None:
+                        hs = {}
+                        hs['stats'] = {}
+                        hs['stats']['first_timestamp'] = m['timestamp']
+                        hs['content_types'] = {}
+                        hs['status_codes'] = {}
+                        hs['via'] = {}
+                        self.hosts[host] = hs
 
                     # Basics
-                    hs['stats']['total'] += 1
-                    hs['stats']['last_timestamp']  = m['timestamp']
+                    hs['stats']['last_timestamp'] = m['timestamp']
+                    hs['stats']['total'] = hs['stats'].get('total', 0) + 1
 
                     # Mime types:
                     mimetype = m.get('mimetype', None)
                     if not mimetype:
                         mimetype = m.get('content_type', 'unknown-content-type')
-                    hs['content_types'][mimetype] += 1
+                    hs['content_types'][mimetype] = hs['content_types'].get(mimetype, 0) +  1
 
                     # Status Codes:
                     sc = str(m.get('status_code'))
                     if not sc:
                         print(json.dumps(m, indent=2))
                         sc = "-"
-                    hs['status_codes'][sc] += 1
+                    hs['status_codes'][sc] = hs['status_codes'].get(sc, 0) +  1
 
                     # Via
                     via_host = self.get_host(m.get('via', None))
                     if via_host and host != via_host:
-                        hs['via'][via_host] += 1
+                        hs['via'][via_host] = hs['via'].get(via_host, 0) + 1
 
         except Exception as e:
             logger.exception("Could not process message %s" % message)
@@ -137,12 +144,12 @@ class CrawlLogConsumer(Thread):
         return parts[1]
 
     def get_status_codes(self):
-        status_codes = defaultdict(int)
+        status_codes = {}
         with self.recentLock:
             for m in self.recent:
                 sc = str(m.get('status_code'))
                 if sc:
-                    status_codes[sc] += 1
+                    status_codes[sc] = status_codes.get(sc, 0) + 1
         # Sort by count:
         status_codes = sorted(status_codes.items(), key=lambda x: x[1], reverse=True)
         return status_codes
@@ -157,7 +164,7 @@ class CrawlLogConsumer(Thread):
                 'last_timestamp': self.last_timestamp,
                 'status_codes': self.get_status_codes(),
                 'screenshots': shots,
-                'hosts': self.hosts
+                'hosts': dict(self.hosts)
             }
 
     def run(self):
