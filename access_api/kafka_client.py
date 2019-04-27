@@ -1,5 +1,6 @@
 import os
 import json
+import copy
 import logging
 import threading
 from urllib.parse import urlsplit
@@ -120,14 +121,14 @@ class CrawlLogConsumer(Thread):
                     mimetype = m.get('mimetype', None)
                     if not mimetype:
                         mimetype = m.get('content_type', 'unknown-content-type')
-                    hs['content_types'][mimetype] = hs['content_types'].get(mimetype, 0) +  1
+                    hs['content_types'][mimetype] = hs['content_types'].get(mimetype, 0) + 1
 
                     # Status Codes:
                     sc = str(m.get('status_code'))
                     if not sc:
                         print(json.dumps(m, indent=2))
                         sc = "-"
-                    hs['status_codes'][sc] = hs['status_codes'].get(sc, 0) +  1
+                    hs['status_codes'][sc] = hs['status_codes'].get(sc, 0) + 1
 
                     # Via
                     via_host = self.get_host(m.get('via', None))
@@ -140,7 +141,7 @@ class CrawlLogConsumer(Thread):
     def get_host(self, url):
         if url is None:
             return None
-        parts =  urlsplit(url)
+        parts = urlsplit(url)
         return parts[1]
 
     def get_status_codes(self):
@@ -160,12 +161,14 @@ class CrawlLogConsumer(Thread):
             shots = list(self.screenshots)
             shots.sort(key=lambda shot: shot[1], reverse=True)
         with self.hostsLock:
-            return {
-                'last_timestamp': self.last_timestamp,
-                'status_codes': self.get_status_codes(),
-                'screenshots': shots,
-                'hosts': dict(self.hosts)
-            }
+            # Make a copy while locked:
+            hosts = copy.deepcopy(dict(self.hosts))
+        return {
+            'last_timestamp': self.last_timestamp,
+            'status_codes': self.get_status_codes(),
+            'screenshots': shots,
+            'hosts': hosts
+        }
 
     def run(self):
         # Set up a consumer:
