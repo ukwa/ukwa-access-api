@@ -1,5 +1,6 @@
 import os
 import io
+import json
 import requests
 
 from flask import Flask, redirect, url_for, jsonify, request, send_file, abort, render_template, Response
@@ -249,7 +250,8 @@ class Crawler(Resource):
         global consumer
         stats = consumer.get_stats()
         try:
-            return jsonify(stats)
+            #return jsonify(stats)
+            return Response(json.dumps(stats), mimetype='application/json')
         except Exception as e:
             app.logger.exception("Could not jsonify stats: %s" % stats)
 

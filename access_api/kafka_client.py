@@ -126,7 +126,7 @@ class CrawlLogConsumer(Thread):
                     # Status Codes:
                     sc = str(m.get('status_code'))
                     if not sc:
-                        print(json.dumps(m, indent=2))
+                        #print(json.dumps(m, indent=2))
                         sc = "-"
                     hs['status_codes'][sc] = hs['status_codes'].get(sc, 0) + 1
 
