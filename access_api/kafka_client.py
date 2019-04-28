@@ -120,7 +120,9 @@ class CrawlLogConsumer(Thread):
                     # Mime types:
                     mimetype = m.get('mimetype', None)
                     if not mimetype:
-                        mimetype = m.get('content_type', 'unknown-content-type')
+                        mimetype = m.get('content_type', None)
+                    if not mimetype:
+                        mimetype = 'unknown-content-type'
                     hs['content_types'][mimetype] = hs['content_types'].get(mimetype, 0) + 1
 
                     # Status Codes:

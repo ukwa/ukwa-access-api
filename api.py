@@ -250,8 +250,7 @@ class Crawler(Resource):
         global consumer
         stats = consumer.get_stats()
         try:
-            #return jsonify(stats)
-            return Response(json.dumps(stats), mimetype='application/json')
+            return jsonify(stats)
         except Exception as e:
             app.logger.exception("Could not jsonify stats: %s" % stats)
 
