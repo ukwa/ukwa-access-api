@@ -1,0 +1,214 @@
+{
+  "last_timestamp": "2019-05-16T12:45:10.247Z",
+  "status_codes": [
+    [
+      "200",
+      75
+    ],
+    [
+      "404",
+      49
+    ],
+    [
+      "204",
+      12
+    ],
+    [
+      "1",
+      6
+    ],
+    [
+      "301",
+      6
+    ],
+    [
+      "304",
+      4
+    ],
+    [
+      "302",
+      4
+    ],
+    [
+      "303",
+      4
+    ],
+    [
+      "-5002",
+      2
+    ],
+    [
+      "-5000",
+      2
+    ],
+    [
+      "-9998",
+      1
+    ]
+  ],
+  "screenshots": [
+    [
+      "http://acid.matkelly.com/",
+      "2019-05-16T12:42:58.561Z"
+    ],
+    [
+      "http://crawl-test-site.webarchive.org.uk/",
+      "2019-05-16T12:42:51.202Z"
+    ]
+  ],
+  "hosts": {
+    "crawl-test-site.webarchive.org.uk": {
+      "stats": {
+        "first_timestamp": "2019-05-16T12:42:35.681Z",
+        "last_timestamp": "2019-05-16T12:43:43.206Z",
+        "total": 24
+      },
+      "content_types": {
+        "text/plain": 5,
+        "text/html": 7,
+        "text/css": 1,
+        "unknown-content-type": 2,
+        "unknown": 3,
+        "text/xml": 2,
+        "application/pdf": 1,
+        "image/png": 1,
+        "application/octet-stream": 2
+      },
+      "status_codes": {
+        "200": 18,
+        "304": 2,
+        "-5002": 1,
+        "-9998": 1,
+        "404": 1,
+        "-5000": 1
+      },
+      "via": {}
+    },
+    "acid.matkelly.com": {
+      "stats": {
+        "first_timestamp": "2019-05-16T12:42:35.669Z",
+        "last_timestamp": "2019-05-16T12:43:30.832Z",
+        "total": 12
+      },
+      "content_types": {
+        "text/html": 2,
+        "application/javascript": 2,
+        "image/png": 3,
+        "unknown-content-type": 2,
+        "unknown": 2,
+        "image/vnd.microsoft.icon": 1
+      },
+      "status_codes": {
+        "404": 1,
+        "200": 7,
+        "304": 2,
+        "-5002": 1,
+        "-5000": 1
+      },
+      "via": {}
+    },
+    "www.cs.odu.edu": {
+      "stats": {
+        "first_timestamp": "2019-05-16T12:42:41.920Z",
+        "last_timestamp": "2019-05-16T12:42:45.976Z",
+        "total": 8
+      },
+      "content_types": {
+        "text/html": 2,
+        "application/javascript": 3,
+        "image/png": 3
+      },
+      "status_codes": {
+        "301": 2,
+        "200": 6
+      },
+      "via": {}
+    },
+    "dublincore.org": {
+      "stats": {
+        "first_timestamp": "2019-05-16T12:43:41.208Z",
+        "last_timestamp": "2019-05-16T12:44:15.997Z",
+        "total": 22
+      },
+      "content_types": {
+        "text/plain": 1,
+        "text/html": 14,
+        "application/javascript": 1,
+        "application/xml": 1,
+        "image/png": 3,
+        "unknown": 1,
+        "image/svg+xml": 1
+      },
+      "status_codes": {
+        "200": 13,
+        "303": 4,
+        "301": 4,
+        "404": 1
+      },
+      "via": {
+        "crawl-test-site.webarchive.org.uk": 1,
+        "purl.org": 4
+      }
+    },
+    "purl.org": {
+      "stats": {
+        "first_timestamp": "2019-05-16T12:43:41.583Z",
+        "last_timestamp": "2019-05-16T12:43:55.994Z",
+        "total": 6
+      },
+      "content_types": {
+        "text/html": 6
+      },
+      "status_codes": {
+        "404": 2,
+        "302": 4
+      },
+      "via": {
+        "crawl-test-site.webarchive.org.uk": 4
+      }
+    },
+    "www.dublincore.org": {
+      "stats": {
+        "first_timestamp": "2019-05-16T12:43:43.636Z",
+        "last_timestamp": "2019-05-16T12:45:10.247Z",
+        "total": 72
+      },
+      "content_types": {
+        "text/plain": 1,
+        "text/html": 44,
+        "application/xml": 1,
+        "image/png": 8,
+        "unknown": 1,
+        "image/svg+xml": 1,
+        "text/css": 10,
+        "application/javascript": 6
+      },
+      "status_codes": {
+        "200": 29,
+        "404": 43
+      },
+      "via": {
+        "dublincore.org": 1
+      }
+    },
+    "ajax.googleapis.com": {
+      "stats": {
+        "first_timestamp": "2019-05-16T12:43:51.192Z",
+        "last_timestamp": "2019-05-16T12:43:54.291Z",
+        "total": 3
+      },
+      "content_types": {
+        "text/plain": 1,
+        "text/javascript": 1,
+        "text/html": 1
+      },
+      "status_codes": {
+        "200": 2,
+        "404": 1
+      },
+      "via": {
+        "dublincore.org": 1
+      }
+    }
+  }
+}

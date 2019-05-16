@@ -14,7 +14,6 @@ except ImportError:
     # older releases
     from werkzeug.contrib.fixers import ProxyFix
 
-from access_api.kafka_client import CrawlLogConsumer
 from access_api.cdx import lookup_in_cdx, list_from_cdx
 from access_api.screenshots import get_rendered_original_stream, full_and_thumb_jpegs
 from access_api.save import KafkaLauncher
@@ -38,11 +37,18 @@ WEBRENDER_ARCHIVE_SERVER= os.environ.get("WEBRENDER_ARCHIVE_SERVER", "http://web
 # Example URL to use
 EXAMPLE_URL = "http://portico.bl.uk/"
 
+
+# Get the crawler stats file:
+def load_stats():
+    with open(os.environ.get("ANALYSIS_SOURCE_FILE", "test/data/fc.crawled.json")) as f:
+        stats = json.load(f)
+    return stats
+
+
 # Define this here, before RESTplus loads:
 @app.route('/')
 def get_index():
-    global consumer
-    stats = consumer.get_stats()
+    stats = load_stats()
     return render_template('index.html', title="Welcome", stats=stats)
 
 
@@ -65,25 +71,8 @@ class JsonOrFileSchema(fields.Raw):
 
 
 # ------------------------------
-# Shared reference to Kafka consumer:
+# Global config:
 # ------------------------------
-global consumer
-
-
-@app.before_first_request
-def start_up_kafka_client():
-    # Set up the crawl log sampler
-    kafka_broker = os.environ.get('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')
-    kafka_crawled_topic = os.environ.get('KAFKA_CRAWLED_TOPIC', 'uris.crawled.fc')
-    kafka_seek_to_beginning = os.environ.get('KAFKA_SEEK_TO_BEGINNING', False)
-    # Note that care needs to be taken us using Group IDs, or different workers see different parts of the logs
-    global consumer
-    consumer = CrawlLogConsumer(
-        kafka_crawled_topic, [kafka_broker], None,
-        from_beginning=kafka_seek_to_beginning)
-    consumer.start()
-
-
 @app.after_request
 def allow_cross_origin_usage(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
@@ -233,8 +222,7 @@ class Screenshots(Resource):
     @ns.doc(id='get_screenshots_dashboard')
     @ns.produces(['text/html'])
     def get(self):
-        global consumer
-        stats = consumer.get_stats()
+        stats = load_stats()
         return Response(render_template('screenshots.html', title="Recent Screenshots", stats=stats), mimetype='text/html')
 
 
@@ -247,8 +235,7 @@ class Crawler(Resource):
 
         This returns a summary of recent crawling activity.
         """
-        global consumer
-        stats = consumer.get_stats()
+        stats = load_stats()
         try:
             return jsonify(stats)
         except Exception as e:
