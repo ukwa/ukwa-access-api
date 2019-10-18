@@ -30,7 +30,7 @@ requests-file==1.4.3
 six==1.12.0
 surt==0.3.0
 tldextract==2.2.0
-urllib3==1.24.1
+urllib3==1.24.2
 warcio==1.6.3
 watchdog==0.9.0
 webencodings==0.5.1
