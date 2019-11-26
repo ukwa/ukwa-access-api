@@ -5,7 +5,7 @@ import requests
 
 from flask import Flask, redirect, url_for, jsonify, request, send_file, abort, render_template, Response
 from flask_restplus import Resource, Api, fields
-from werkzeug.contrib.cache import FileSystemCache
+from cachelib import FileSystemCache
 
 try:
     # Werkzeug 0.15 and newer
