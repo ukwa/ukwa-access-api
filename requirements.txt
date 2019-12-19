@@ -2,6 +2,7 @@ aniso8601==4.1.0
 appdirs==1.4.3
 argh==0.26.2
 brotlipy==0.7.0
+cachelib==0.1
 certifi==2018.11.29
 cffi==1.11.5
 chardet==3.0.4
@@ -11,7 +12,7 @@ flask-restplus==0.12.1
 gunicorn==19.9.0
 idna==2.8
 itsdangerous==1.1.0
-Jinja2==2.10
+Jinja2==2.10.3
 jsonschema==2.6.0
 kafka-python==1.4.4
 MarkupSafe==1.1.0
