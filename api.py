@@ -56,7 +56,6 @@ def get_index():
 app.config.SWAGGER_UI_DOC_EXPANSION = 'list'
 
 # Patch the API so it's visible on HTTPS/HTTP
-# See 
 class PatchedApi(Api):
     @property
     def specs_url(self):
@@ -66,7 +65,7 @@ class PatchedApi(Api):
             return url_for(self.endpoint('specs'), _external=True)
 
 # Set up the API base:
-api = PatchedApi(app, version='1.0', title='UKWA API (%s)' % os.environ.get('API_LABEL', 'TEST'), doc="/doc/",
+api = PatchedApi(app, version='1.0', title=os.environ.get('API_LABEL', 'UKWA API (TEST)'), doc="/doc/",
           description='API services for interacting with UKWA content. \
                       This is an early-stage prototype and may be changed without notice.')
 app.config.PREFERRED_URL_SCHEME = 'https'
