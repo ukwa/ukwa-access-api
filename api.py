@@ -54,9 +54,13 @@ def get_index():
 
 # Now set up RESTplus:
 app.config.SWAGGER_UI_DOC_EXPANSION = 'list'
-api = Api(app, version='1.0', title='UKWA API (%s)' % os.environ.get('API_LABEL', 'TEST'), doc='/apidoc/',
+api = Api(app, version='1.0', title='UKWA API (%s)' % os.environ.get('API_LABEL', 'TEST'), doc="/doc/",
           description='API services for interacting with UKWA content. \
                       This is an early-stage prototype and may be changed without notice.')
+
+@app.route('/redoc/')
+def redoc():
+    return render_template('redoc.html')
 
 
 class RenderedPageSchema(fields.Raw):
