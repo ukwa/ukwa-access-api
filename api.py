@@ -54,9 +54,22 @@ def get_index():
 
 # Now set up RESTplus:
 app.config.SWAGGER_UI_DOC_EXPANSION = 'list'
-api = Api(app, version='1.0', title='UKWA API (%s)' % os.environ.get('API_LABEL', 'TEST'), doc="/doc/",
+
+# Patch the API so it's visible on HTTPS/HTTP
+# See 
+class PatchedApi(Api):
+    @property
+    def specs_url(self):
+        if 'HTTP_X_FORWARDED_PROTO' in os.environ:
+            return url_for(self.endpoint('specs'), _external=True, _scheme=os.environ['HTTP_X_FORWARDED_PROTO'])
+        else:
+            return url_for(self.endpoint('specs'), _external=True)
+
+# Set up the API base:
+api = PatchedApi(app, version='1.0', title='UKWA API (%s)' % os.environ.get('API_LABEL', 'TEST'), doc="/doc/",
           description='API services for interacting with UKWA content. \
                       This is an early-stage prototype and may be changed without notice.')
+app.config.PREFERRED_URL_SCHEME = 'https'
 
 @app.route('/redoc/')
 def redoc():
@@ -79,6 +92,7 @@ class JsonOrFileSchema(fields.Raw):
 # ------------------------------
 @app.after_request
 def allow_cross_origin_usage(response):
+    # Allow third-parties to call these APIs from different hosts:
     response.headers['Access-Control-Allow-Origin'] = '*'
     return response
 
