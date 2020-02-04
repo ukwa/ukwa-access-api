@@ -83,7 +83,7 @@ class RenderedPageSchema(fields.Raw):
 class JsonOrFileSchema(fields.Raw):
     __schema_type__ = 'file'
     __schema_format__ = 'A JSON object describing the location of the rendered item, or the rendered ' \
-                        'version of the original URL. Determined via content negociation.'
+                        'version of the original URL. Determined via content negotiation.'
 
 
 # ------------------------------
@@ -278,7 +278,8 @@ class SaveThisPage(Resource):
                 self.kafka_launcher = KafkaLauncher(broker, topic)
 
         # And set enqueue:
-        self.kafka_launcher.launch(url, "save-page-now", webrender_this=True, launch_ts='now', inherit_launch_ts=False)
+        self.kafka_launcher.launch(url, "save-page-now", webrender_this=True,
+                                   launch_ts='now', inherit_launch_ts=False, forceFetch=True)
 
     @nss.doc(id='save_this_page')
     def get(self, url):
