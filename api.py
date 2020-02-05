@@ -35,7 +35,7 @@ WAYBACK_SERVER = os.environ.get("WAYBACK_SERVER", "https://www.webarchive.org.uk
 WEBRENDER_ARCHIVE_SERVER= os.environ.get("WEBRENDER_ARCHIVE_SERVER", "http://webrender:8010/render")
 
 # Example URL to use
-EXAMPLE_URL = "http://portico.bl.uk/"
+EXAMPLE_URL = "http://www.bl.uk/"
 
 
 # Get the crawler stats file:
@@ -99,13 +99,12 @@ def allow_cross_origin_usage(response):
 # ------------------------------
 # Access Services
 # ------------------------------
-ns = api.namespace('access', description='Access Services')
-
+ns = api.namespace('Lookup', path="/lookup", description='URL lookup queries, for finding and resolving archival URLs.')
 
 @ns.route('/resolve/<string:timestamp>/<path:url>')
 @ns.param('timestamp', 'Target timestamp in 14-digit format, e.g. 20170510120000. If unspecified, will direct to the most recent archived snapshot.',
           required=True, default='20170510120000')
-@ns.param('url', 'URL to look up.', required=True, default='https://www.bl.uk/')
+@ns.param('url', 'URL to find.', required=True, default='https://www.bl.uk/')
 class WaybackResolver(Resource):
     @ns.doc(id='get_wayback_resolver')
     @ns.response(307, 'Redirects the incoming request to the most suitable representation of the URL. If the client is in a reading room, they will be redirected to their local acces gateway. If the client is off-site, they will be redirected to the Open UK Web Archive.')
@@ -117,20 +116,42 @@ class WaybackResolver(Resource):
         open access part of the UK Web Archive only.
 
         """
-        return redirect('https://www.webarchive.org.uk/wayback/archive/%s/%s' % (timestamp, url), code=307)
+        return redirect('/wayback/archive/%s/%s' % (timestamp, url), code=307)
+
+@ns.route('/query')
+@ns.param('url', 'URL to look for (will canonicalize the URL before running the query).', required=True, location='args',
+          default='http://portico.bl.uk/')
+@ns.param('matchType', 'Type of match to look for.', enum=[ "exact", "prefix", "host", "domain", "range" ],
+          required=False, location='args', default='exact')
+@ns.param('sort', 'Order to return results.', enum=[ "default", "closest", "reverse"  ],
+          required=False, location='args', default='default')
+class CDXServer(Resource):
+    @ns.doc(id='get_cdx_server')
+    @ns.response(200, 'TBA...')
+    def get(self):
+        """
+        Query our CDX index.
+
+        TBA...
+
+        """
+        # Should open a streaming call to cdx.api.wa.bl.uk/data-heritrix and stream the results back...
+        return ""
 
 
-@ns.route('/screenshot/')
-@ns.param('url', 'URL to look up.', required=True, location='args', default=EXAMPLE_URL)
-@ns.param('source', 'The source of the screenshot', enum=['original', 'archive'], required=False, location='args', default='original')
-@ns.param('type', 'The type of screenshot to retrieve', enum=['thumbnail', 'screenshot', 'har', 'onreadydom', 'imagemap', 'pdf'],
+nsr = api.namespace('Screenshots', path="/screenshots", description='Access to crawl-time and post-crawl screenshots of archived websites.')
+
+@nsr.route('/')
+@nsr.param('url', 'URL to look up.', required=True, location='args', default=EXAMPLE_URL)
+@nsr.param('source', 'The source of the screenshot', enum=['original', 'archive'], required=False, location='args', default='original')
+@nsr.param('type', 'The type of screenshot to retrieve', enum=['thumbnail', 'screenshot', 'har', 'onreadydom', 'imagemap', 'pdf'],
           required=False, location='args', default='thumbnail')
-@ns.param('target_date', 'The target date and time to use, as a 14-character (Wayback-style) timestamp (e.g. 20190101120000)', required=False, location='args' )
+@nsr.param('target_date', 'The target date and time to use, as a 14-character (Wayback-style) timestamp (e.g. 20190101120000)', required=False, location='args' )
 class Screenshot(Resource):
 
-    @ns.doc(id='get_rendered_original', model=RenderedPageSchema)
-    @ns.produces(['image/*'])
-    @ns.response(404, 'No screenshot for that url has been captured during crawls.')
+    @nsr.doc(id='get_rendered_original', model=RenderedPageSchema)
+    @nsr.produces(['image/*'])
+    @nsr.response(404, 'No screenshot for that url has been captured during crawls.')
     def get(self):
         """
         Grabs an screenshot of an web page.
@@ -195,14 +216,14 @@ class Screenshot(Resource):
         return send_file(io.BytesIO(full_jpeg), mimetype=content_type)
 
 
-@ns.route('/screenshot/list')
-@ns.param('url', 'URL to look up.', required=True, location='args', default=EXAMPLE_URL)
-@ns.param('source', 'The source of the screenshot', enum=['original', 'archive'], required=False, location='args', default='original')
-@ns.param('type', 'The type of screenshot to retrieve', enum=['thumbnail', 'screenshot', 'har', 'onreadydom', 'imagemap', 'pdf'],
+@nsr.route('/list')
+@nsr.param('url', 'URL to look up.', required=True, location='args', default=EXAMPLE_URL)
+@nsr.param('source', 'The source of the screenshot', enum=['original', 'archive'], required=False, location='args', default='original')
+@nsr.param('type', 'The type of screenshot to retrieve', enum=['thumbnail', 'screenshot', 'har', 'onreadydom', 'imagemap', 'pdf'],
           location='args', required=False, default='thumbnail')
 class Screenshot(Resource):
 
-    @ns.doc(id='get_screenshot_list')
+    @nsr.doc(id='get_screenshot_list')
     def get(self):
         """
         Lists the available crawl-time screenshots
@@ -230,7 +251,7 @@ class Screenshot(Resource):
 # -------------------------------
 # Statistics & Reporting
 # -------------------------------
-nss = api.namespace('stats', description='Statistics & Reporting')
+nss = api.namespace('Statistics', path="/stats", description='Summary statistics and live reporting.')
 
 
 @nss.route('/crawler/recent-screenshots')
@@ -262,7 +283,7 @@ class Crawler(Resource):
 # ------------------------------
 # Save This Page Service
 # ------------------------------
-nsn = api.namespace('save', description='"Save This Page" Service')
+nsn = api.namespace('Save', path="/save", description='Submit URLs to be archived.')
 
 
 @nsn.route('/<path:url>')
@@ -284,7 +305,7 @@ class SaveThisPage(Resource):
     @nss.doc(id='save_this_page')
     def get(self, url):
         """
-        Save This Page service.
+        'Save This Page' service.
 
         Use this to request a URL be saved. If it's in scope for the UK Web Archive, it will be queued for crawling ASAP. If it's out of scope if will be logged for review, to see if we can include in in future.
 
