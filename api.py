@@ -67,7 +67,8 @@ class PatchedApi(Api):
 # Set up the API base:
 api = PatchedApi(app, version='1.0', title=os.environ.get('API_LABEL', 'UKWA API (TEST)'), doc="/doc/",
           description='API services for interacting with UKWA content. \
-                      This is an early-stage prototype and may be changed without notice.')
+                      This is an early-stage prototype and may be changed without notice. \
+                      TBA: A note about the separate Wayback API?')
 app.config.PREFERRED_URL_SCHEME = 'https'
 
 @app.route('/redoc/')
@@ -99,7 +100,7 @@ def allow_cross_origin_usage(response):
 # ------------------------------
 # Access Services
 # ------------------------------
-ns = api.namespace('Lookup', path="/lookup", description='URL lookup queries, for finding and resolving archival URLs.')
+ns = api.namespace('Mementos', path="/memento", description='<a href="https://tools.ietf.org/html/rfc7089#section-1.1">Memento</a> lookup queries, for finding and resolving archived URLs (in addition to the standard Memento API).')
 
 @ns.route('/resolve/<string:timestamp>/<path:url>')
 @ns.param('timestamp', 'Target timestamp in 14-digit format, e.g. 20170510120000. If unspecified, will direct to the most recent archived snapshot.',
@@ -133,6 +134,8 @@ class CDXServer(Resource):
         Query our CDX index.
 
         TBA...
+
+        Note that our Wayback service also supports the Memento API as per https://tools.ietf.org/html/rfc7089
 
         """
         # Should open a streaming call to cdx.api.wa.bl.uk/data-heritrix and stream the results back...
