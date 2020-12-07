@@ -14,6 +14,7 @@ except ImportError:
     # older releases
     from werkzeug.contrib.fixers import ProxyFix
 
+from access_api.analysis import load_fc_analysis
 from access_api.cdx import lookup_in_cdx, list_from_cdx
 from access_api.screenshots import get_rendered_original_stream, full_and_thumb_jpegs
 from access_api.save import KafkaLauncher
@@ -37,18 +38,10 @@ WEBRENDER_ARCHIVE_SERVER= os.environ.get("WEBRENDER_ARCHIVE_SERVER", "http://web
 # Example URL to use
 EXAMPLE_URL = "http://www.bl.uk/"
 
-
-# Get the crawler stats file:
-def load_stats():
-    with open(os.environ.get("ANALYSIS_SOURCE_FILE", "test/data/fc.crawled.json")) as f:
-        stats = json.load(f)
-    return stats
-
-
 # Define this here, before RESTplus loads:
 @app.route('/')
 def get_index():
-    stats = load_stats()
+    stats = load_fc_analysis()
     return render_template('index.html', title="Welcome", stats=stats)
 
 
@@ -68,7 +61,7 @@ class PatchedApi(Api):
 api = PatchedApi(app, version='1.0', title=os.environ.get('API_LABEL', 'UKWA API (TEST)'), doc="/doc/",
           description='API services for interacting with UKWA content. \
                       This is an early-stage prototype and may be changed without notice. \
-                      TBA: A note about the separate Wayback API?')
+                      TBA: A note about the separate Wayback API? <a href="http://www.mementoweb.org/guide/quick-intro/">Memento</a>')
 app.config.PREFERRED_URL_SCHEME = 'https'
 
 @app.route('/redoc/')
@@ -98,9 +91,15 @@ def allow_cross_origin_usage(response):
 
 
 # ------------------------------
+# ------------------------------
 # Access Services
 # ------------------------------
-ns = api.namespace('Mementos', path="/memento", description='<a href="https://tools.ietf.org/html/rfc7089#section-1.1">Memento</a> lookup queries, for finding and resolving archived URLs (in addition to the standard Memento API).')
+# ------------------------------
+
+# ---------
+# Query API
+# ---------
+ns = api.namespace('Query', path="/query", description='Query API for finding and resolving archived URL.')
 
 @ns.route('/resolve/<string:timestamp>/<path:url>')
 @ns.param('timestamp', 'Target timestamp in 14-digit format, e.g. 20170510120000. If unspecified, will direct to the most recent archived snapshot.',
@@ -119,7 +118,7 @@ class WaybackResolver(Resource):
         """
         return redirect('/wayback/archive/%s/%s' % (timestamp, url), code=307)
 
-@ns.route('/query')
+@ns.route('/lookup')
 @ns.param('url', 'URL to look for (will canonicalize the URL before running the query).', required=True, location='args',
           default='http://portico.bl.uk/')
 @ns.param('matchType', 'Type of match to look for.', enum=[ "exact", "prefix", "host", "domain", "range" ],
@@ -142,7 +141,10 @@ class CDXServer(Resource):
         return ""
 
 
-nsr = api.namespace('Screenshots', path="/screenshots", description='Access to crawl-time and post-crawl screenshots of archived websites.')
+# ----------
+# Render API
+# ----------
+nsr = api.namespace('Render', path="/render", description='Access to crawl-time and post-crawl screenshots of archived websites.')
 
 @nsr.route('/')
 @nsr.param('url', 'URL to look up.', required=True, location='args', default=EXAMPLE_URL)
@@ -251,13 +253,31 @@ class Screenshot(Resource):
 
 
 
-# -------------------------------
-# Statistics & Reporting
-# -------------------------------
-nss = api.namespace('Statistics', path="/stats", description='Summary statistics and live reporting.')
+
+@nsr.route('/iiif/2/<string:pwid>/<string:region>/<string:size>/<int:rotation>/<string:quality>.<string:format>')
+@nsr.param('pwid', 'A <a href="">Persistent Web IDentifier (PWID) URN</a>. Must be URL-encoded or Base64 encoded.',
+          required=True, default='urn:pwid:webarchive.org.uk:1995-04-18T15:56:00Z:page:http:%2F%2F%2Fportico.bl.uk%2F')
+@nsr.param('region', 'IIIF image region.', required=True, default='full')
+@nsr.param('size', 'IIIF image size.', required=True, default='full')
+@nsr.param('rotation', 'IIIF image rotation (degrees).', required=True, default='0')
+@nsr.param('quality', 'IIIF image quality.', required=True, default='default', enum=['default', 'grey'])
+@nsr.param('format', 'IIIF image format.', required=True, default='png', enum=['png','jpg'])
+class IIIFRenderer(Resource):
+    @ns.doc(id='iiif')
+    @ns.response(200, 'The requested image, if available.')
+    def get(self, pwid, region, size, rotation, quality, format):
+        """
+        """
+        return redirect('/wayback/archive/%s/%s' % (timestamp, url), code=307)
 
 
-@nss.route('/crawler/recent-screenshots')
+
+# -------------------------------
+# Statistics
+# -------------------------------
+nss = api.namespace('Statistics', path="/stats", description='Information and summary statistics.')
+
+@nss.route('/crawl/recent-screenshots')
 class Screenshots(Resource):
 
     @ns.doc(id='get_screenshots_dashboard')
@@ -267,7 +287,7 @@ class Screenshots(Resource):
         return Response(render_template('screenshots.html', title="Recent Screenshots", stats=stats), mimetype='text/html')
 
 
-@nss.route('/crawler/recent-activity')
+@nss.route('/crawl/recent-activity')
 class Crawler(Resource):
     @nss.doc(id='get_recent_activity')
     def get(self):
@@ -287,7 +307,6 @@ class Crawler(Resource):
 # Save This Page Service
 # ------------------------------
 nsn = api.namespace('Save', path="/save", description='Submit URLs to be archived.')
-
 
 @nsn.route('/<path:url>')
 class SaveThisPage(Resource):
