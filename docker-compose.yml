@@ -100,7 +100,7 @@ services:
     image: lyrasis/cantaloupe
     environment:
       SOURCE_STATIC: "HttpSource"
-      HTTPSOURCE_BASICLOOKUPSTRATEGY_URL_PREFIX: "http://api:8000/render_raw?show_screenshot=true&url="
+      HTTPSOURCE_BASICLOOKUPSTRATEGY_URL_PREFIX: "http://api:8000/render_raw?pwid="
       HTTPSOURCE_BASICLOOKUPSTRATEGY_URL_SUFFIX: ""
       HTTPSOURCE_REQUEST_TIMEOUT: 3600
       PROCESSOR_STREAM_RETRIEVAL_STRATEGY: "CacheStrategy"
@@ -108,7 +108,7 @@ services:
       PROCESSOR_DOWNSCALE_FILTER: "Lanczos3"
       # Web pages suffer badly from JPEG artefacts. Can use PNG instead.
       PROCESSOR_JPG_QUALITY: 100 
-      ENDPOINT_ADMIN_ENABLED: "true"
+      CACHE_SERVER_RESOLVE_FIRST: 'false'
       LOG_APPLICATION_LEVEL: "warn"
       LOG_ACCESS_CONSOLEAPPENDER_ENABLED: "true"
       # Not needed in prod:

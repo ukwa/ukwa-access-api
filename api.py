@@ -1,7 +1,9 @@
 import os
 import io
+import re
 import json
 import requests
+from base64 import b64decode
 
 from flask import Flask, redirect, url_for, jsonify, request, send_file, abort, render_template, Response
 from flask_restplus import Resource, Api, fields
@@ -35,6 +37,12 @@ WAYBACK_SERVER = os.environ.get("WAYBACK_SERVER", "https://www.webarchive.org.uk
 # Get the location of the web rendering server:
 WEBRENDER_ARCHIVE_SERVER= os.environ.get("WEBRENDER_ARCHIVE_SERVER", "http://webrender:8010/render")
 
+# Get the location of the CDX server:
+CDX_SERVER= os.environ.get("CDX_SERVER", "http://cdx:9090/tc")
+
+# Get the location of the IIIF server:
+IIIF_SERVER= os.environ.get("IIIF_SERVER", "http://iiif:8182")
+
 # Example URL to use
 EXAMPLE_URL = "http://www.bl.uk/"
 
@@ -58,23 +66,21 @@ class PatchedApi(Api):
             return url_for(self.endpoint('specs'), _external=True)
 
 # Set up the API base:
-api = PatchedApi(app, version='1.0', title=os.environ.get('API_LABEL', 'UKWA API (TEST)'), doc=None,
-          description='API services for interacting with UKWA content. \
-                      This is an early-stage prototype and may be changed without notice. \
-                      TBA: A note about the separate Wayback API? <a href="http://www.mementoweb.org/guide/quick-intro/">Memento</a>')
-app.config.PREFERRED_URL_SCHEME = 'https'
+api = PatchedApi(app, version='1.0', title=os.environ.get('API_LABEL', 'UK Web Archive API (TEST)'), doc=None,
+          description='API services for the UK Web Archive.<br/> \
+                      <b>This is an early-stage prototype and may be changed without notice.</b>')
+api.vendor({
+    'x-logo': {
+        'url': "https://redocly.github.io/redoc/petstore-logo.png",
+        'backgroundColor': "#FFFFFF",
+        'altText': "Petstore logo"
+    }})
 
+app.config.PREFERRED_URL_SCHEME = 'https'
 
 class RenderedPageSchema(fields.Raw):
     __schema_type__ = 'file'
     __schema_format__ = 'A rendered version of the given URL.'
-
-
-class JsonOrFileSchema(fields.Raw):
-    __schema_type__ = 'file'
-    __schema_format__ = 'A JSON object describing the location of the rendered item, or the rendered ' \
-                        'version of the original URL. Determined via content negotiation.'
-
 
 # ------------------------------
 # Global config:
@@ -98,41 +104,57 @@ def allow_cross_origin_usage(response):
 ns = api.namespace('Query', path="/query", description='Query API for finding and resolving archived URL.')
 
 @ns.route('/resolve/<string:timestamp>/<path:url>')
-@ns.param('timestamp', 'Target timestamp in 14-digit format, e.g. 20170510120000. If unspecified, will direct to the most recent archived snapshot.',
-          required=True, default='20170510120000')
-@ns.param('url', 'URL to find.', required=True, default='https://www.bl.uk/')
+@ns.param('url', 'URL to find.', required=True)
+@ns.param('timestamp', 'Target timestamp in 14-digit format, e.g. `20170510120000`. If unspecified, will direct to the most recent archived snapshot.',
+          required=True)
 class WaybackResolver(Resource):
     @ns.doc(id='get_wayback_resolver')
     @ns.response(307, 'Redirects the incoming request to the most suitable representation of the URL. If the client is in a reading room, they will be redirected to their local acces gateway. If the client is off-site, they will be redirected to the Open UK Web Archive.')
     def get(self, timestamp, url):
         """
-        Resolve a timestamp and URL via the most appropriate playback service.
-
-        Redirects the incoming request to the most suitable archived version of a given URL. Currently redirect to the
-        open access part of the UK Web Archive only.
+        Resolve a timestamp and URL
+        
+        Redirects the incoming request to the most suitable archived version of a given URL, closest to the given timestamp. 
+        Currently redirects to the open access part of the UK Web Archive only.
 
         """
         return redirect('/wayback/archive/%s/%s' % (timestamp, url), code=307)
 
 @ns.route('/lookup')
-@ns.param('url', 'URL to look for (will canonicalize the URL before running the query).', required=True, location='args',
-          default='http://portico.bl.uk/')
-@ns.param('matchType', 'Type of match to look for.', enum=[ "exact", "prefix", "host", "domain", "range" ],
-          required=False, location='args', default='exact')
 @ns.param('sort', 'Order to return results.', enum=[ "default", "closest", "reverse"  ],
           required=False, location='args', default='default')
+@ns.param('matchType', 'Type of match to look for.', enum=[ "exact", "prefix", "host", "domain", "range" ],
+          required=False, location='args', default='exact')
+@ns.param('url', 'URL to look for (will canonicalize the URL before running the query).', required=True, location='args',
+          default='http://portico.bl.uk/')
 class CDXServer(Resource):
     @ns.doc(id='get_cdx_server')
-    @ns.response(200, 'TBA...')
+    @ns.produces(['text/plain'])
+    @ns.response(200, 'A list of matches in [11-field CDX format](https://iipc.github.io/warc-specifications/specifications/cdx-format/cdx-2015/).')
     def get(self):
         """
-        Lookup a URL in the UK Web Archive CDX index.
+        Lookup a URL
 
+        Queries our main index for URLs via the <a href="https://github.com/webrecorder/pywb/wiki/CDX-Server-API">CDX API</a>, as implemented by <a href="https://github.com/nla/outbackcdx">OutbackCDX</a>.
+        
         Note that our <a href="/wayback/archive/">Wayback service</a> also supports the Memento API as per https://tools.ietf.org/html/rfc7089
 
         """
-        # Should open a streaming call to cdx.api.wa.bl.uk/data-heritrix and stream the results back...
-        return ""
+        # Only put through allowed parameters:
+        params = {
+            'url': request.args.get('url'),
+            'matchType': request.args.get('matchType', 'exact'),
+            'sort': request.args.get('sort', 'default')
+        }
+        # Open a streaming call to cdx.api.wa.bl.uk/data-heritrix and stream the results back...
+        r = requests.request(
+            method='GET',
+            url=f"{CDX_SERVER}",
+            params=params,
+            stream=True
+            )
+        return Response(r.iter_content(chunk_size=10*1024),
+                    content_type=r.headers['Content-Type'])
 
 
 # ----------
@@ -140,25 +162,28 @@ class CDXServer(Resource):
 # ----------
 nsr = api.namespace('IIIF', path="/iiif", description='Access screenshots of archived websites via the <a href="https://iiif.io/api/">IIIF</a> <a href="https://iiif.io/api/image/2.1/">Image API 2.1</a>')
 @nsr.route('/2/<path:pwid>/<string:region>/<string:size>/<int:rotation>/<string:quality>.<string:format>')
-@nsr.param('pwid', 'A <a href="">Persistent Web IDentifier (PWID) URN</a>. Must be twice-URL-encoded or Base64 encoded.',
-          required=True, default='urn:pwid:webarchive.org.uk:1995-04-18T15:56:00Z:page:http:%2F%2F%2Fportico.bl.uk%2F')
-@nsr.param('region', 'IIIF image request <a href="https://iiif.io/api/image/2.1/#region">region</a>.', required=True, default='full')
-@nsr.param('size', 'IIIF image request <a href="https://iiif.io/api/image/2.1/#size">size</a>.', required=True, default='full')
-@nsr.param('rotation', 'IIIF image request <a href="https://iiif.io/api/image/2.1/#rotation">rotation (degrees)</a>.', required=True, default='0')
-@nsr.param('quality', 'IIIF image request <a href="https://iiif.io/api/image/2.1/#quality">quality</a>.', required=True, default='default', enum=['default', 'grey'])
 @nsr.param('format', 'IIIF image request <a href="https://iiif.io/api/image/2.1/#format">format</a>.', required=True, default='png', enum=['png','jpg'])
+@nsr.param('quality', 'IIIF image request <a href="https://iiif.io/api/image/2.1/#quality">quality</a>.', required=True, default='default', enum=['default', 'grey'])
+@nsr.param('rotation', 'IIIF image request <a href="https://iiif.io/api/image/2.1/#rotation">rotation (degrees)</a>.', required=True, default='0')
+@nsr.param('size', 'IIIF image request <a href="https://iiif.io/api/image/2.1/#size">size</a>.', required=True, default='full')
+@nsr.param('region', 'IIIF image request <a href="https://iiif.io/api/image/2.1/#region">region</a>.', required=True, default='full')
+@nsr.param('pwid', 'A <a href="https://tools.ietf.org/html/draft-pwid-urn-specification-09">Persistent Web IDentifier (PWID) URN</a>. The identifier must be twice-URL-encoded or Base64 encoded UTF-8 text. <br/>For example, the pwid <br/>`urn:pwid:webarchive.org.uk:1995-04-18T15:56:00Z:page:http://portico.bl.uk/`<br/> must be encoded as: <br/><tt>urn%253Apwid%253Awebarchive.org.uk%253A1995-04-18T15%253A56%253A00Z%253Apage%253Ahttp%253A%252F%252Fportico.bl.uk%252F</tt><br/> or in Base64 as: <br>`dXJuOnB3aWQ6d2ViYXJjaGl2ZS5vcmcudWs6MTk5NS0wNC0xOFQxNTo1NjowMFo6cGFnZTpodHRwOi8vcG9ydGljby5ibC51ay8=`',
+          required=True)
 class IIIFRenderer(Resource):
-    @ns.doc(id='iiif_2')
-    @ns.response(200, 'The requested image, if available.')
+    @nsr.doc(id='iiif_2', model=RenderedPageSchema)
+    @nsr.produces(['image/png', 'image/jpeg'])
+    @nsr.response(200, 'The requested image, if available.')
     def get(self, pwid, region, size, rotation, quality, format):
         """
-        Provides images of rendered archived web pages a <a href="https://iiif.io/api/">IIIF</a> <a href="https://iiif.io/api/image/2.1/">Image API 2.1</a>.
+        Access images of rendered archived web pages.
+        
+        Via the <a href="https://iiif.io/api/">IIIF</a> <a href="https://iiif.io/api/image/2.1/">Image API 2.1</a>.
         """
 
         # Proxy requests to IIIF server:
         resp = requests.request(
             method='GET',
-            url=f"http://iiif:8182/iiif/2/{pwid}/{region}/{size}/{rotation}/{quality}.{format}",
+            url=f"{IIIF_SERVER}/iiif/2/{pwid}/{region}/{size}/{rotation}/{quality}.{format}",
             headers={key: value for (key, value) in request.headers if key != 'Host'}
             )
 
@@ -177,6 +202,7 @@ nss = api.namespace('Statistics', path="/stats", description='Information and su
 @nss.route('/crawl/recent-activity')
 class Crawler(Resource):
     @nss.doc(id='get_recent_activity')
+    @nss.produces(['application/json'])
     def get(self):
         """
         Summarise recent crawling activity
@@ -212,6 +238,7 @@ class SaveThisPage(Resource):
                                    launch_ts='now', inherit_launch_ts=False, forceFetch=True)
 
     @nss.doc(id='save_this_page')
+    @nss.produces(['application/json'])
     def get(self, url):
         """
         'Save This Page' service.
@@ -267,16 +294,59 @@ def render_raw():
     Caching should be done up-stream.
 
     """
-    url = request.args.get('url')
+    url = request.args.get('url', None)
+    pwid = request.args.get('pwid', None)
     type = request.args.get('type', 'screenshot')
     source = request.args.get('source', 'archive')
     target_date = request.args.get('target_date', None)
 
-    # First check with a Wayback service to see if this URL is allowed:
-    # This defaults to the public OA service, to avoid accidentally making non-OA material available.
-    r = requests.get("%s%s" %(WAYBACK_SERVER, url))
-    if r.status_code < 200 or r.status_code >= 400:
-        abort(Response(r.reason, status=r.status_code))
+    # Must have url or pwid:
+    if not url and not pwid:
+        abort(Response('Must specify URL or PWID', status=400))
+
+    if pwid:
+        print('PWAWWAW')
+        # Decode Base64 if needed
+        if not pwid.startswith('urn:pwid:'):
+            print(pwid)
+            # Attempt to decode Base64
+            try:
+                decodedbytes = b64decode(pwid)
+                decoded = decodedbytes.decode("utf-8") 
+            except Exception as e:
+                app.logger.exception("Failed to decode", e)
+                decoded = ""
+            print(decoded)
+            # And check the result:
+            if decoded.startswith('urn:pwid:'):
+                pwid = decoded
+            else:
+                abort(Response(f'Could not decode PWID {pwid}', status=400))
+
+        # Parse the PWID
+        # urn:pwid:webarchive.org.uk:1995-04-18T15:56:00Z:page:http://portico.bl.uk/    
+        m = re.compile('^urn:pwid:([^:]+):([^Z]+Z):([^:]+):(.+)$')
+        parts = m.match(pwid)
+        if not parts or len(parts.groups()) != 4:
+            abort(Response(f'Could not parse PWID {pwid}', status=400))
+
+        # Not all archives...
+        if parts.group(1) != 'webarchive.org.uk':
+            abort(Response(f'Only webarchive.org.uk PWIDs are supported.', status=400))
+
+        # Not all scopes...
+        if parts.group(3) != 'page':
+            abort(Response(f'Only page PWIDs are supported.', status=400))
+
+        # Continue with all that is good:
+        url = parts.group(4)
+        target_date = re.sub('[^0-9]','', parts.group(2))
+
+        # First check with a Wayback service to see if this URL is allowed:
+        # This defaults to the public OA service, to avoid accidentally making non-OA material available.
+        r = requests.get("%s%s" %(WAYBACK_SERVER, url))
+        if r.status_code < 200 or r.status_code >= 400:
+            abort(Response(r.reason, status=r.status_code))
 
     # Query URL
     qurl = "%s:%s" % (type, url)
