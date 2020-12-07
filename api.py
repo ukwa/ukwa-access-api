@@ -305,10 +305,8 @@ def render_raw():
         abort(Response('Must specify URL or PWID', status=400))
 
     if pwid:
-        print('PWAWWAW')
         # Decode Base64 if needed
         if not pwid.startswith('urn:pwid:'):
-            print(pwid)
             # Attempt to decode Base64
             try:
                 decodedbytes = b64decode(pwid)
@@ -316,7 +314,6 @@ def render_raw():
             except Exception as e:
                 app.logger.exception("Failed to decode", e)
                 decoded = ""
-            print(decoded)
             # And check the result:
             if decoded.startswith('urn:pwid:'):
                 pwid = decoded
