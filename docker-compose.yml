@@ -1,7 +1,7 @@
 version: '2'
 
 services:
-  ukwa-access-api:
+  api:
     build:
       context: .
       args:
@@ -21,15 +21,15 @@ services:
 
   # Archived web page rendering service
   webrender:
-    image: ukwa/webrender-api:1.0.1
+    image: ukwa/webrender-api:1.0.15
     environment:
       - "HTTP_PROXY=pywb:8080"
       - "DOCKER_NETWORK=ukwa-access-api_default" # pywb network, to attach renderer containers to
       - "LC_ALL=en_US.utf8"
       - "WEB_RENDER_TMP=/tmp/webrender" # Has to match the _host_ folder mounted below.
       # DOCKER_HOST could be used to run rendering on a dedicated service.
-    #ports:
-    #  - "8010:8010"
+    ports:
+      - "18010:8010"
     depends_on:
       - pywb
     volumes:
@@ -49,15 +49,15 @@ services:
   # PyWB
   pywb:
     image: webrecorder/pywb:2.4.2
-    #ports:
-    #  - "8080:8080"
+    ports:
+      - "18080:8080"
     volumes:
       - ./integration-testing/webarchive:/webarchive
 
   warc-server:
     image: ukwa/warc-server
     #ports:
-    #  - 8001:8000
+    #  - 18000:8000
     environment:
       - "WARC_PATHS=/webarchive/collections/test/archive"
     volumes:
@@ -91,3 +91,29 @@ services:
     image: wurstmeister/zookeeper
     #ports:
     # - "2181:2181"
+
+  # 
+  # IIIF Server to manipulate images
+  # Reference for env vars: https://github.com/lyrasis/docker-cantaloupe/blob/master/Dockerfile
+  # 
+  iiif:
+    image: lyrasis/cantaloupe
+    environment:
+      SOURCE_STATIC: "HttpSource"
+      HTTPSOURCE_BASICLOOKUPSTRATEGY_URL_PREFIX: "http://api:8000/render_raw?show_screenshot=true&url="
+      HTTPSOURCE_BASICLOOKUPSTRATEGY_URL_SUFFIX: ""
+      HTTPSOURCE_REQUEST_TIMEOUT: 3600
+      PROCESSOR_STREAM_RETRIEVAL_STRATEGY: "CacheStrategy"
+      # Seems to cope better with sharp edges:
+      PROCESSOR_DOWNSCALE_FILTER: "Lanczos3"
+      # Web pages suffer badly from JPEG artefacts. Can use PNG instead.
+      PROCESSOR_JPG_QUALITY: 100 
+      ENDPOINT_ADMIN_ENABLED: "true"
+      LOG_APPLICATION_LEVEL: "warn"
+      LOG_ACCESS_CONSOLEAPPENDER_ENABLED: "true"
+      # Not needed in prod:
+      PRINT_STACK_TRACE_ON_ERROR_PAGES: "false"
+    #ports:
+    #  - 8182:8182
+    volumes:
+      - ./integration-testing/iiif_cache:/var/cache/cantaloupe
