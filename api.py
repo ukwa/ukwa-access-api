@@ -47,14 +47,17 @@ IIIF_SERVER= os.environ.get("IIIF_SERVER", "http://iiif:8182")
 # Example URL to use
 EXAMPLE_URL = "http://www.bl.uk/"
 
-# Define this here, before RESTplus loads:
-#@app.route('/')
-#def get_index():
-#    stats = load_fc_analysis()
-#    return render_template('index.html', title="Welcome", stats=stats)
+# ------------------------------
+# Setup index page 
+# (done before RESTplus loads)
+# ------------------------------
+@app.route('/')
+def redoc():
+    return render_template('redoc.html')
 
-def gen_pwid(target_date, url, archive_id='webarchive.org.uk'):
-    yy1,yy2,MM,dd,hh,mm,ss = re.findall('..',target_date)
+# Helper to turn timestamp etc. into full PWID:
+def gen_pwid(wb14_timestamp, url, archive_id='webarchive.org.uk'):
+    yy1,yy2,MM,dd,hh,mm,ss = re.findall('..', wb14_timestamp)
     iso_ts = f"{yy1}{yy2}-{MM}-{dd}T{hh}:{hh}:{ss}Z"
     pwid = f"urn:pwid:{archive_id}:{iso_ts}:page:{url}"
     return pwid    
@@ -96,7 +99,6 @@ def allow_cross_origin_usage(response):
     # Allow third-parties to call these APIs from different hosts:
     response.headers['Access-Control-Allow-Origin'] = '*'
     return response
-
 
 # ------------------------------
 # ------------------------------
@@ -332,10 +334,6 @@ class SaveThisPage(Resource):
 # ------------------------------
 # ------------------------------
 
-@app.route('/')
-def redoc():
-    return render_template('redoc.html')
-
 @app.route('/render_raw', methods=['HEAD', 'GET'])
 def render_raw():
     """
@@ -418,7 +416,7 @@ def render_raw():
     if request.method == 'HEAD':
         return jsonify(pwid=pwid, success=True)
 
-    # TODO Use cached value if there is one, using pwid as key:
+    # Use cached value if there is one, using pwid as key:
     result = screenshot_cache.get(pwid)
     if result is not None:
         #app.logger.info("Found in cache: %s" % pwid)
