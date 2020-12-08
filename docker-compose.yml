@@ -16,6 +16,7 @@ services:
      - cdxserver
      - webrender
      - pywb
+     - iiif
     ports:
      - "8000:8000"
 

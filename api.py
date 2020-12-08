@@ -211,7 +211,7 @@ class IIIFRenderer(Resource):
 @nsr.route('/2/<path:pwid>/info.json')
 @nsr.param('pwid', 'A <a href="https://tools.ietf.org/html/draft-pwid-urn-specification-09">Persistent Web IDentifier (PWID) URN</a>. The identifier must be URL-encoded or Base64 encoded UTF-8 text. <br/>For example, the pwid <br/>`urn:pwid:webarchive.org.uk:1995-04-18T15:56:00Z:page:http://portico.bl.uk/`<br/> must be encoded as: <br/><tt>urn%253Apwid%253Awebarchive.org.uk%253A1995-04-18T15%253A56%253A00Z%253Apage%253Ahttp%253A%252F%252Fportico.bl.uk%252F</tt><br/> or in Base64 as: <br>`dXJuOnB3aWQ6d2ViYXJjaGl2ZS5vcmcudWs6MTk5NS0wNC0xOFQxNTo1NjowMFo6cGFnZTpodHRwOi8vcG9ydGljby5ibC51ay8=`',
           required=True)
-class IIIFRenderer(Resource):
+class IIIFInfo(Resource):
     @nsr.doc(id='iiif_2_info')
     @nsr.produces(['application/json'])
     @nsr.response(200, 'The info.json for this image')
@@ -220,8 +220,7 @@ class IIIFRenderer(Resource):
         IIIF metadata.
         """
  
-        app.logger.warn("IIIF PWID: %s" % pwid)
-        app.logger.warn("ENV %s" % request.headers)
+        app.logger.info("IIIF PWID: %s" % pwid)
 
         # Re-encode the PWID for passing on:
         pwid_encoded = quote(pwid, safe='')
@@ -244,17 +243,15 @@ class IIIFRenderer(Resource):
           required=True)
 class IIIFHelper(Resource):
     @nsr.doc(id='iiif_helper_pwid')
-    @nsr.response(307, 'Takes ')
+    @nsr.response(307, 'Redirects to an IIIF URL.')
     def get(self, timestamp, url):
         """
-        Resolve a timestamp and URL
+        Redirect to a suitable IIIF URL using a PWID with the given timestamp and url properly encoded. 
         
-        Redirects the incoming request to the most suitable archived version of a given URL, closest to the given timestamp. 
-        Currently redirects to the open access part of the UK Web Archive only.
-
         """
         pwid = gen_pwid(timestamp,quote(url,safe=''))
-        return redirect('/iiif/2/%s/0,0,1024,1024/600,/0/default.png' % pwid, code=303)
+        nurl = url_for('IIIF_iiif_renderer', pwid=pwid, region='0,0,1024,1024', size='600,', rotation=0, quality='default', format='png')
+        return redirect(nurl, code=303)
 
 
 # -------------------------------
@@ -408,12 +405,9 @@ def render_raw():
         if r.status_code < 200 or r.status_code >= 400:
             abort(Response(r.reason, status=r.status_code))
 
-    app.logger.warn("Got PWID: %s" % pwid)
-    app.logger.warn("Got date: %s" % target_date)
-    
     # Rebuild the PWID:
     pwid = gen_pwid(target_date, url)
-    app.logger.warn("Got PWID: %s" % pwid)
+    app.logger.info("Got PWID: %s" % pwid)
 
     # Request is okay in principle, so return 200 if this is a HEAD request:
     if request.method == 'HEAD':
