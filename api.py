@@ -332,7 +332,7 @@ class SaveThisPage(Resource):
 # ------------------------------
 # ------------------------------
 
-@app.route('/doc/')
+@app.route('/')
 def redoc():
     return render_template('redoc.html')
 
