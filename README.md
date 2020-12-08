@@ -28,6 +28,12 @@ The file should be generated from W3ACT in a separate process, see python-shephe
 
 This takes the timestamp and URL of interest, and redirects to the appropriate Wayback instance.
 
+### IIIF Image API for rendering archived web pages
+
+urn:pwid:webarchive.org.uk:1995-04-18T15:56:00Z:page:http://acid.matkelly.com
+
+/iiif/2/dXJuOnB3aWQ6d2ViYXJjaGl2ZS5vcmcudWs6MTk5NS0wNC0xOFQxNTo1NjowMFo6cGFnZTpodHRwOi8vYWNpZC5tYXRrZWxseS5jb20==/0,0,1366,1366/300,/0/default.png
+
 
 Development & Deployment
 ------------------------

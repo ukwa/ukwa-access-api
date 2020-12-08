@@ -107,13 +107,13 @@ services:
       # Seems to cope better with sharp edges:
       PROCESSOR_DOWNSCALE_FILTER: "Lanczos3"
       # Web pages suffer badly from JPEG artefacts. Can use PNG instead.
-      PROCESSOR_JPG_QUALITY: 100 
+      PROCESSOR_JPG_QUALITY: 100
       CACHE_SERVER_RESOLVE_FIRST: "false"
       LOG_APPLICATION_LEVEL: "info"
       LOG_ACCESS_CONSOLEAPPENDER_ENABLED: "true"
       # Not needed in prod:
       PRINT_STACK_TRACE_ON_ERROR_PAGES: "false"
-    #ports:
-    #  - 8182:8182
+    ports:
+      - 8182:8182
     volumes:
       - ./integration-testing/iiif_cache:/var/cache/cantaloupe

@@ -3,6 +3,7 @@ import io
 import re
 import json
 import requests
+from urllib.parse import quote
 from base64 import b64decode
 
 from flask import Flask, redirect, url_for, jsonify, request, send_file, abort, render_template, Response
@@ -35,10 +36,10 @@ screenshot_cache = FileSystemCache(os.path.join(app.config['CACHE_FOLDER'], 'scr
 WAYBACK_SERVER = os.environ.get("WAYBACK_SERVER", "https://www.webarchive.org.uk/wayback/archive/")
 
 # Get the location of the web rendering server:
-WEBRENDER_ARCHIVE_SERVER= os.environ.get("WEBRENDER_ARCHIVE_SERVER", "http://webrender:8010/render")
+WEBRENDER_ARCHIVE_SERVER = os.environ.get("WEBRENDER_ARCHIVE_SERVER", "http://webrender:8010/render")
 
 # Get the location of the CDX server:
-CDX_SERVER= os.environ.get("CDX_SERVER", "http://cdx:9090/tc")
+CDX_SERVER = os.environ.get("CDX_SERVER", "http://cdx:9090/tc")
 
 # Get the location of the IIIF server:
 IIIF_SERVER= os.environ.get("IIIF_SERVER", "http://iiif:8182")
@@ -47,11 +48,16 @@ IIIF_SERVER= os.environ.get("IIIF_SERVER", "http://iiif:8182")
 EXAMPLE_URL = "http://www.bl.uk/"
 
 # Define this here, before RESTplus loads:
-@app.route('/')
-def get_index():
-    stats = load_fc_analysis()
-    return render_template('index.html', title="Welcome", stats=stats)
+#@app.route('/')
+#def get_index():
+#    stats = load_fc_analysis()
+#    return render_template('index.html', title="Welcome", stats=stats)
 
+def gen_pwid(target_date, url, archive_id='webarchive.org.uk'):
+    yy1,yy2,MM,dd,hh,mm,ss = re.findall('..',target_date)
+    iso_ts = f"{yy1}{yy2}-{MM}-{dd}T{hh}:{hh}:{ss}Z"
+    pwid = f"urn:pwid:{archive_id}:{iso_ts}:page:{url}"
+    return pwid    
 
 # Now set up RESTplus:
 app.config.SWAGGER_UI_DOC_EXPANSION = 'list'
@@ -167,7 +173,7 @@ nsr = api.namespace('IIIF', path="/iiif", description='Access screenshots of arc
 @nsr.param('rotation', 'IIIF image request <a href="https://iiif.io/api/image/2.1/#rotation">rotation (degrees)</a>.', required=True, default='0')
 @nsr.param('size', 'IIIF image request <a href="https://iiif.io/api/image/2.1/#size">size</a>.', required=True, default='full')
 @nsr.param('region', 'IIIF image request <a href="https://iiif.io/api/image/2.1/#region">region</a>.', required=True, default='full')
-@nsr.param('pwid', 'A <a href="https://tools.ietf.org/html/draft-pwid-urn-specification-09">Persistent Web IDentifier (PWID) URN</a>. The identifier must be twice-URL-encoded or Base64 encoded UTF-8 text. <br/>For example, the pwid <br/>`urn:pwid:webarchive.org.uk:1995-04-18T15:56:00Z:page:http://portico.bl.uk/`<br/> must be encoded as: <br/><tt>urn%253Apwid%253Awebarchive.org.uk%253A1995-04-18T15%253A56%253A00Z%253Apage%253Ahttp%253A%252F%252Fportico.bl.uk%252F</tt><br/> or in Base64 as: <br>`dXJuOnB3aWQ6d2ViYXJjaGl2ZS5vcmcudWs6MTk5NS0wNC0xOFQxNTo1NjowMFo6cGFnZTpodHRwOi8vcG9ydGljby5ibC51ay8=`',
+@nsr.param('pwid', 'A <a href="https://tools.ietf.org/html/draft-pwid-urn-specification-09">Persistent Web IDentifier (PWID) URN</a>. The identifier must be URL-encoded or Base64 encoded UTF-8 text. <br/>For example, the pwid <br/>`urn:pwid:webarchive.org.uk:1995-04-18T15:56:00Z:page:http://portico.bl.uk/`<br/> must be encoded as: <br/><tt>urn%253Apwid%253Awebarchive.org.uk%253A1995-04-18T15%253A56%253A00Z%253Apage%253Ahttp%253A%252F%252Fportico.bl.uk%252F</tt><br/> or in Base64 as: <br>`dXJuOnB3aWQ6d2ViYXJjaGl2ZS5vcmcudWs6MTk5NS0wNC0xOFQxNTo1NjowMFo6cGFnZTpodHRwOi8vcG9ydGljby5ibC51ay8=`',
           required=True)
 class IIIFRenderer(Resource):
     @nsr.doc(id='iiif_2', model=RenderedPageSchema)
@@ -179,11 +185,16 @@ class IIIFRenderer(Resource):
         
         Via the <a href="https://iiif.io/api/">IIIF</a> <a href="https://iiif.io/api/image/2.1/">Image API 2.1</a>.
         """
+ 
+        app.logger.info("IIIF PWID: %s" % pwid)
+
+        # Re-encode the PWID for passing on:
+        pwid_encoded = quote(pwid, safe='')
 
         # Proxy requests to IIIF server:
         resp = requests.request(
             method='GET',
-            url=f"{IIIF_SERVER}/iiif/2/{pwid}/{region}/{size}/{rotation}/{quality}.{format}",
+            url=f"{IIIF_SERVER}/iiif/2/{pwid_encoded}/{region}/{size}/{rotation}/{quality}.{format}",
             headers={key: value for (key, value) in request.headers if key != 'Host'}
             )
 
@@ -192,6 +203,53 @@ class IIIFRenderer(Resource):
         response = Response(resp.content, resp.status_code, headers)
         return response
 
+@nsr.route('/2/<path:pwid>/info.json')
+@nsr.param('pwid', 'A <a href="https://tools.ietf.org/html/draft-pwid-urn-specification-09">Persistent Web IDentifier (PWID) URN</a>. The identifier must be URL-encoded or Base64 encoded UTF-8 text. <br/>For example, the pwid <br/>`urn:pwid:webarchive.org.uk:1995-04-18T15:56:00Z:page:http://portico.bl.uk/`<br/> must be encoded as: <br/><tt>urn%253Apwid%253Awebarchive.org.uk%253A1995-04-18T15%253A56%253A00Z%253Apage%253Ahttp%253A%252F%252Fportico.bl.uk%252F</tt><br/> or in Base64 as: <br>`dXJuOnB3aWQ6d2ViYXJjaGl2ZS5vcmcudWs6MTk5NS0wNC0xOFQxNTo1NjowMFo6cGFnZTpodHRwOi8vcG9ydGljby5ibC51ay8=`',
+          required=True)
+class IIIFRenderer(Resource):
+    @nsr.doc(id='iiif_2_info')
+    @nsr.produces(['application/json'])
+    @nsr.response(200, 'The info.json for this image')
+    def get(self, pwid):
+        """
+        IIIF metadata.
+        """
+ 
+        app.logger.warn("IIIF PWID: %s" % pwid)
+        app.logger.warn("ENV %s" % request.headers)
+
+        # Re-encode the PWID for passing on:
+        pwid_encoded = quote(pwid, safe='')
+
+        # Proxy requests to IIIF server:
+        resp = requests.request(
+            method='GET',
+            url=f"{IIIF_SERVER}/iiif/2/{pwid_encoded}/info.json",
+            headers={key: value for (key, value) in request.headers if key != 'Host'}
+            )
+
+        headers = [(name, value) for (name, value) in resp.raw.headers.items()]
+
+        response = Response(resp.content, resp.status_code, headers)
+        return response
+
+@nsr.route('/helper/<string:timestamp>/<path:url>')
+@nsr.param('url', 'URL to render.', required=True)
+@nsr.param('timestamp', 'Target timestamp in 14-digit format, e.g. `20170510120000`. If unspecified, will direct to the most recent archived snapshot.',
+          required=True)
+class IIIFHelper(Resource):
+    @nsr.doc(id='iiif_helper_pwid')
+    @nsr.response(307, 'Takes ')
+    def get(self, timestamp, url):
+        """
+        Resolve a timestamp and URL
+        
+        Redirects the incoming request to the most suitable archived version of a given URL, closest to the given timestamp. 
+        Currently redirects to the open access part of the UK Web Archive only.
+
+        """
+        pwid = gen_pwid(timestamp,quote(url,safe=''))
+        return redirect('/iiif/2/%s/0,0,1024,1024/600,/0/default.png' % pwid, code=303)
 
 
 # -------------------------------
@@ -278,7 +336,7 @@ class SaveThisPage(Resource):
 def redoc():
     return render_template('redoc.html')
 
-@app.route('/render_raw')
+@app.route('/render_raw', methods=['HEAD', 'GET'])
 def render_raw():
     """
     Grabs an screenshot of an web page.
@@ -291,9 +349,10 @@ def render_raw():
 
     All seeds should have a <tt>screenshot</tt> - the other rendered types are usually present with the exception of 'pdf' which is under development.
 
-    Caching should be done up-stream.
+    Caching should be done downstream, but some caching is done here as the current IIIF server seems to fetch twice.
 
     """
+
     url = request.args.get('url', None)
     pwid = request.args.get('pwid', None)
     type = request.args.get('type', 'screenshot')
@@ -337,6 +396,9 @@ def render_raw():
 
         # Continue with all that is good:
         url = parts.group(4)
+        # Convert https to http as the screenshotter doesn't like it with pywb it seems:
+        if url.startswith('https:'):
+            url = url.replace('https', 'http', 1)
         target_date = re.sub('[^0-9]','', parts.group(2))
 
         # First check with a Wayback service to see if this URL is allowed:
@@ -345,12 +407,28 @@ def render_raw():
         if r.status_code < 200 or r.status_code >= 400:
             abort(Response(r.reason, status=r.status_code))
 
-    # Query URL
-    qurl = "%s:%s" % (type, url)
+    app.logger.warn("Got PWID: %s" % pwid)
+    app.logger.warn("Got date: %s" % target_date)
+    
+    # Rebuild the PWID:
+    pwid = gen_pwid(target_date, url)
+    app.logger.warn("Got PWID: %s" % pwid)
+
+    # Request is okay in principle, so return 200 if this is a HEAD request:
+    if request.method == 'HEAD':
+        return jsonify(pwid=pwid, success=True)
+
+    # TODO Use cached value if there is one, using pwid as key:
+    result = screenshot_cache.get(pwid)
+    if result is not None:
+        #app.logger.info("Found in cache: %s" % pwid)
+        return send_file(io.BytesIO(result['payload']), mimetype=result['content_type'])
+    
 
     # For originals:
     if source == 'original':
         # Query CDX Server for the item
+        qurl = "%s:%s" % (type, url)
         (warc_filename, warc_offset, compressed_end_offset) = lookup_in_cdx(qurl, target_date)
 
         # If not found, say so:
@@ -369,7 +447,9 @@ def render_raw():
         content_type = "image/png"
 
     # And return
-    return send_file(stream, mimetype=content_type)
+    image_file = stream.read()
+    screenshot_cache.set(pwid, {'payload': image_file, 'content_type': content_type}, timeout=60*60)
+    return send_file(io.BytesIO(image_file), mimetype=content_type)
 
 
 if __name__ == '__main__':
