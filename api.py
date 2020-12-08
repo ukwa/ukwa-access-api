@@ -7,7 +7,7 @@ from urllib.parse import quote
 from base64 import b64decode
 
 from flask import Flask, redirect, url_for, jsonify, request, send_file, abort, render_template, Response
-from flask_restplus import Resource, Api, fields
+from flask_restx import Resource, Api, fields
 from cachelib import FileSystemCache
 
 try:
@@ -47,13 +47,16 @@ IIIF_SERVER= os.environ.get("IIIF_SERVER", "http://iiif:8182")
 # Example URL to use
 EXAMPLE_URL = "http://www.bl.uk/"
 
+# API Doc Title
+API_LABEL = os.environ.get('API_LABEL', 'UK Web Archive API (TEST)')
+
 # ------------------------------
 # Setup index page 
 # (done before RESTplus loads)
 # ------------------------------
 @app.route('/')
 def redoc():
-    return render_template('redoc.html')
+    return render_template('redoc.html', title=API_LABEL)
 
 # Helper to turn timestamp etc. into full PWID:
 def gen_pwid(wb14_timestamp, url, archive_id='webarchive.org.uk'):
@@ -62,7 +65,12 @@ def gen_pwid(wb14_timestamp, url, archive_id='webarchive.org.uk'):
     pwid = f"urn:pwid:{archive_id}:{iso_ts}:page:{url}"
     return pwid    
 
+# ------------------------------
+# ------------------------------
 # Now set up RESTplus:
+# ------------------------------
+# ------------------------------
+
 app.config.SWAGGER_UI_DOC_EXPANSION = 'list'
 
 # Patch the API so it's visible on HTTPS/HTTP
@@ -75,15 +83,9 @@ class PatchedApi(Api):
             return url_for(self.endpoint('specs'), _external=True)
 
 # Set up the API base:
-api = PatchedApi(app, version='1.0', title=os.environ.get('API_LABEL', 'UK Web Archive API (TEST)'), doc=None,
+api = PatchedApi(app, version='1.0', title=API_LABEL, doc=None,
           description='API services for the UK Web Archive.<br/> \
                       <b>This is an early-stage prototype and may be changed without notice.</b>')
-api.vendor({
-    'x-logo': {
-        'url': "https://redocly.github.io/redoc/petstore-logo.png",
-        'backgroundColor': "#FFFFFF",
-        'altText': "Petstore logo"
-    }})
 
 app.config.PREFERRED_URL_SCHEME = 'https'
 
