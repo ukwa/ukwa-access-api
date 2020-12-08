@@ -49,6 +49,7 @@ EXAMPLE_URL = "http://www.bl.uk/"
 
 # API Doc Title
 API_LABEL = os.environ.get('API_LABEL', 'UK Web Archive API (TEST)')
+API_VERSION = os.environ.get('API_VERSION', '0.0.1')
 
 # ------------------------------
 # Setup index page 
@@ -83,7 +84,7 @@ class PatchedApi(Api):
             return url_for(self.endpoint('specs'), _external=True)
 
 # Set up the API base:
-api = PatchedApi(app, version='1.0', title=API_LABEL, doc=None,
+api = PatchedApi(app, version=API_VERSION, title=API_LABEL, doc=None,
           description='API services for the UK Web Archive.<br/> \
                       <b>This is an early-stage prototype and may be changed without notice.</b>')
 
