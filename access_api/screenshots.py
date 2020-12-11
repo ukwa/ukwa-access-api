@@ -4,6 +4,7 @@ import requests
 import logging
 import datetime
 from PIL import Image
+from warcio import WARCWriter
 from warcio.recordloader import ArcWarcRecordLoader
 from warcio.bufferedreaders import DecompressingBufferedReader
 
@@ -12,7 +13,7 @@ from access_api.cdx import lookup_in_cdx, list_from_cdx
 logger = logging.getLogger(__name__)
 
 WEBHDFS_PREFIX = os.environ.get('WEBHDFS_PREFIX', 'http://localhost:8001/by-filename/')
-WEBHDFS_USER = os.environ.get('WEBHDFS_USER', 'hdfs')
+WEBHDFS_USER = os.environ.get('WEBHDFS_USER', 'access')
 
 def get_rendered_original_list(url, render_type='screenshot'):
     # Query URL
@@ -31,12 +32,19 @@ def get_rendered_original(url, render_type='screenshot', target_date=datetime.da
     return warc_filename, warc_offset, compressedendoffset
 
 
-def get_rendered_original_stream(warc_filename, warc_offset, compressedendoffset):
-    """
-    Grabs a rendered resource.
+def get_original(url, target_date=datetime.datetime.today()):
+    # Query URL
+    qurl = "url"
+    # Query CDX Server for the item
+    logger.debug("Querying CDX for prefix...")
+    warc_filename, warc_offset, compressedendoffset = lookup_in_cdx(qurl)
 
-    Only reason Wayback can't do this is that it does not like the extended URIs
-    i.e. 'screenshot:http://' and replaces them with 'http://screenshot:http://'
+    return warc_filename, warc_offset, compressedendoffset
+
+
+def get_rendered_original_stream(warc_filename, warc_offset, compressedendoffset, payload_only=True):
+    """
+    Grabs a resource.
     """
     # If not found, say so:
     if warc_filename is None:
@@ -47,12 +55,20 @@ def get_rendered_original_stream(warc_filename, warc_offset, compressedendoffset
     if compressedendoffset:
         url = "%s&length=%s" % (url, compressedendoffset)
     r = requests.get(url, stream=True)
-    logger.debug("Loading from: %s" % r.url)
+    # We handle decoding etc.
     r.raw.decode_content = False
-    rl = ArcWarcRecordLoader()
-    record = rl.parse_record_stream(DecompressingBufferedReader(stream=r.raw))
-
-    return record.raw_stream, record.content_type
+    logger.info("Loading from: %s" % r.url)
+    # Return the payload, or the record:
+    if payload_only:
+        # Parse the WARC, return the payload:
+        rl = ArcWarcRecordLoader()
+        record = rl.parse_record_stream(DecompressingBufferedReader(stream=r.raw))
+        #return record.raw_stream, record.content_type
+        return record.content_stream(), record.content_type
+    else:
+        # This makes sure we only get the first GZip chunk:
+        s = DecompressingBufferedReader(stream=r.raw)
+        return s, 'application/warc'
 
 
 def full_and_thumb_jpegs(large_png, crop=False):

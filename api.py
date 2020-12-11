@@ -2,6 +2,7 @@ import os
 import io
 import re
 import json
+import logging
 import requests
 from urllib.parse import quote
 from base64 import b64decode
@@ -10,30 +11,31 @@ from flask import Flask, redirect, url_for, jsonify, request, send_file, abort, 
 from flask_restx import Resource, Api, fields
 from cachelib import FileSystemCache
 
-try:
-    # Werkzeug 0.15 and newer
-    from werkzeug.middleware.proxy_fix import ProxyFix
-except ImportError:
-    # older releases
-    from werkzeug.contrib.fixers import ProxyFix
+import werkzeug
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from access_api.analysis import load_fc_analysis
-from access_api.cdx import lookup_in_cdx, list_from_cdx
+from access_api.cdx import lookup_in_cdx, list_from_cdx, can_access
 from access_api.screenshots import get_rendered_original_stream, full_and_thumb_jpegs
 from access_api.save import KafkaLauncher
 
+# Set the base log level
+logging.getLogger().setLevel(logging.INFO)
+
 # Get the core Flask setup working:
 app = Flask(__name__, template_folder='access_api/templates', static_folder='access_api/static')
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1, x_port=1, x_prefix=1) # For https://stackoverflow.com/questions/23347387/x-forwarded-proto-and-flask X-Forwarded-Proto
+
+# For https://stackoverflow.com/questions/23347387/x-forwarded-proto-and-flask X-Forwarded-Proto etc.
+# https://werkzeug.palletsprojects.com/en/1.0.x/middleware/proxy_fix/
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1, x_port=1, x_prefix=1) 
+
+# Configuration options:
 app.config['SECRET_KEY'] = os.environ.get('APP_SECRET', 'dev-mode-key')
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['CACHE_FOLDER'] = os.environ.get('CACHE_FOLDER', '__cache__')
 
 # Set up a persistent cache for screenshots etc.
 screenshot_cache = FileSystemCache(os.path.join(app.config['CACHE_FOLDER'], 'screenshot_cache'), threshold=0, default_timeout=0)
-
-# Get the Wayback endpoint to check for access rights:
-WAYBACK_SERVER = os.environ.get("WAYBACK_SERVER", "https://www.webarchive.org.uk/wayback/archive/")
 
 # Get the location of the web rendering server:
 WEBRENDER_ARCHIVE_SERVER = os.environ.get("WEBRENDER_ARCHIVE_SERVER", "http://webrender:8010/render")
@@ -74,19 +76,31 @@ def gen_pwid(wb14_timestamp, url, archive_id='webarchive.org.uk'):
 
 app.config.SWAGGER_UI_DOC_EXPANSION = 'list'
 
-# Patch the API so it's visible on HTTPS/HTTP
+# Patch the API to add additional info
+# https://github.com/Colin-b/layab/blob/1b700f2681b39f77f35be56564990d6e3fe982d3/layab/flask_restx.py#L19
 class PatchedApi(Api):
-    @property
-    def specs_url(self):
-        if 'HTTP_X_FORWARDED_PROTO' in os.environ:
-            return url_for(self.endpoint('specs'), _external=True, _scheme=os.environ['HTTP_X_FORWARDED_PROTO'])
-        else:
-            return url_for(self.endpoint('specs'), _external=True)
+    def __init__(self, *args, **kwargs):
+        self.extra_info = kwargs.pop("info", {})
+        super().__init__(*args, **kwargs)
+
+    @werkzeug.utils.cached_property
+    def __schema__(self):
+        schema = super().__schema__
+        schema.setdefault("info", {}).update(self.extra_info)
+        return schema
 
 # Set up the API base:
 api = PatchedApi(app, version=API_VERSION, title=API_LABEL, doc=None,
           description='API services for the UK Web Archive.<br/> \
-                      <b>This is an early-stage prototype and may be changed without notice.</b>')
+                      <b>This is an early-stage prototype and may be changed without notice.</b>',
+          info={ 
+              "x-logo": {
+                #"url": "/ukwa/img/ukwa-2018-onwhite-close.svg",
+                "url": "https://dev.webarchive.org.uk/ukwa/img/ukwa-2018-onwhite-close.svg",
+                "backgroundColor": "#FFFFFF",
+                "altText": "UK Web Archive logo"
+                }
+              })
 
 app.config.PREFERRED_URL_SCHEME = 'https'
 
@@ -166,6 +180,42 @@ class CDXServer(Resource):
             )
         return Response(r.iter_content(chunk_size=10*1024),
                     content_type=r.headers['Content-Type'])
+
+@ns.route('/warc/<string:timestamp>/<path:url>')
+@ns.param('url', 'URL to find.', required=True)
+@ns.param('timestamp', 'Target timestamp in 14-digit format, e.g. `20170510120000`. If unspecified, will direct to the most recent archived snapshot.',
+          required=True)
+class WARCServer(Resource):
+    @ns.doc(id='get_warc_record')
+    @ns.produces(['application/warc'])
+    @ns.response(200, 'The corresponding WARC record.')
+    def get(self, url, timestamp):
+        """
+        Get a WARC record
+
+        Look up a URL and timestamp and get the corresponding raw WARC record.
+
+        """
+
+        app.logger.info("Checking %s %s" % (timestamp, url))
+
+        # Check access:
+        can_access(url)
+
+        # Query CDX Server for the item
+        (warc_filename, warc_offset, compressed_end_offset) = lookup_in_cdx(url, timestamp)
+
+        app.logger.info("Getting record: %s %s %s" % (warc_filename, warc_offset, compressed_end_offset))
+
+        # If not found, say so:
+        if warc_filename is None:
+            abort(404)
+
+        # Grab the payload from the WARC and return it.
+        stream, content_type = get_rendered_original_stream(warc_filename,warc_offset, compressed_end_offset, payload_only=False)
+
+        return send_file(stream, mimetype=content_type)
+
 
 
 # ----------
@@ -402,11 +452,10 @@ def render_raw():
             url = url.replace('https', 'http', 1)
         target_date = re.sub('[^0-9]','', parts.group(2))
 
-        # First check with a Wayback service to see if this URL is allowed:
-        # This defaults to the public OA service, to avoid accidentally making non-OA material available.
-        r = requests.get("%s%s" %(WAYBACK_SERVER, url))
-        if r.status_code < 200 or r.status_code >= 400:
-            abort(Response(r.reason, status=r.status_code))
+    # Check with a Wayback service to see if this URL is allowed:
+    if not can_access(url):
+        print("GAHHHH")
+        return
 
     # Rebuild the PWID:
     pwid = gen_pwid(target_date, url)

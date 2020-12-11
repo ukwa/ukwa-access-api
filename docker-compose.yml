@@ -14,6 +14,7 @@ services:
       - "WEBHDFS_PREFIX=http://warc-server:8000/by-filename/"
     depends_on:
      - cdxserver
+     - warc-server
      - webrender
      - pywb
      - iiif

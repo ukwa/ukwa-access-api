@@ -1,16 +1,43 @@
 import os
 import logging
 import datetime
-from requests.utils import quote
-import xml.dom.minidom
 import requests
-from collections import OrderedDict
+import xml.dom.minidom
 
-WAYBACK_TS_FORMAT = '%Y%m%d%H%M%S'
-ISO_TS_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
+from requests.utils import quote
+from collections import OrderedDict
+from flask import Flask, redirect, url_for, jsonify, request, send_file, abort, render_template, Response
+
+# Get the Wayback endpoint to check for access rights:
+# (default to OA one so we don't do the wrong thing if this is unset)
+WAYBACK_SERVER = os.environ.get("WAYBACK_SERVER", "https://www.webarchive.org.uk/wayback/archive/")
+
+# Get the CDX Server
 CDX_SERVER = os.environ.get('CDX_SERVER','http://localhost:9090/fc')
 
+# Formats
+WAYBACK_TS_FORMAT = '%Y%m%d%H%M%S'
+ISO_TS_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
+
 logger = logging.getLogger(__name__)
+
+def can_access(url):
+    """
+    Checks if access to this URL is allowed.
+
+    :return: True/False
+    """
+    qurl = "%s%s" %(WAYBACK_SERVER, url)
+    logger.info("Checking access at %s" % qurl)
+    logger.warn("Checking access at %s" % qurl)
+    r = requests.get(qurl)
+    if r.status_code < 200 or r.status_code >= 400:
+        if r.status_code != None:
+            abort(Response(r.reason, status=r.status_code))
+        else:
+            abort(Response(r.reason, status=500))
+            
+    return True
 
 
 def lookup_in_cdx(qurl, target_date=None):

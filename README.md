@@ -1,7 +1,7 @@
 UKWA Access API
 ===============
 
-This [Flask RESTPlus](https://flask-restplus.readthedocs.io/) application acts as a front-end for our access-time API services.
+This [Flask RESTx](https://flask-restx.readthedocs.io/en/latest/) application acts as a front-end for our access-time API services.
 
 APIs
 ----
