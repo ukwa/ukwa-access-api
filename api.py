@@ -24,7 +24,7 @@ from access_api.save import KafkaLauncher
 
 # Get the core Flask setup working:
 app = Flask(__name__, template_folder='access_api/templates', static_folder='access_api/static')
-app.wsgi_app = ProxyFix(app.wsgi_app, x_host=1, x_port=1, x_prefix=1) # For https://stackoverflow.com/questions/23347387/x-forwarded-proto-and-flask X-Forwarded-Proto
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1, x_port=1, x_prefix=1) # For https://stackoverflow.com/questions/23347387/x-forwarded-proto-and-flask X-Forwarded-Proto
 app.config['SECRET_KEY'] = os.environ.get('APP_SECRET', 'dev-mode-key')
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['CACHE_FOLDER'] = os.environ.get('CACHE_FOLDER', '__cache__')
