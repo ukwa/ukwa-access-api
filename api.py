@@ -342,9 +342,13 @@ class SaveThisPage(Resource):
     def launcher(self, url):
         if self.kafka_launcher is None:
             broker = os.environ.get('KAFKA_LAUNCH_BROKER', None)
-            topic = os.environ.get('KAFKA_LAUNCH_TOPIC', 'fc.candidates')
-            if broker:
+            topic = os.environ.get('KAFKA_LAUNCH_TOPIC', None)
+            if broker and topic:
                 self.kafka_launcher = KafkaLauncher(broker, topic)
+
+        # Raise error if not configured:
+        if self.kafka_launcher is None:
+            raise Exception("Crawl queue not available!")
 
         # And set enqueue:
         self.kafka_launcher.launch(url, "save-page-now", webrender_this=True,
@@ -360,12 +364,13 @@ class SaveThisPage(Resource):
 
         """
         sr = { 'url': url, 'result': {} }
-        # First enqueue for crawl, if configured:
+        # First enqueue for crawl, if configured
         try:
             self.launcher(url)
             sr['result']['ukwa'] = {'event': 'save-page-now',  'status': 201, 'reason': 'Crawl Requested' }
         except Exception as e:
-            sr['result']['ukwa'] = {'event': 'save-page-now', 'status': 500, 'reason': e }
+            app.logger.exception("Exception when saving URL!", e)
+            sr['result']['ukwa'] = {'event': 'save-page-now', 'status': 500, 'reason': str(e) }
 
         # Then also submit request to IA
         ## Commenting out for now, as unsure if this is working properly.
@@ -376,7 +381,7 @@ class SaveThisPage(Resource):
         #except Exception as e:
         #    sr['result']['ia'] = {'event': 'save-page-now', 'status': 500, 'reason': e }
 
-        return jsonify(sr)
+        return sr
 
 
 

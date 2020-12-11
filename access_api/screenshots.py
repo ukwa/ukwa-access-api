@@ -57,8 +57,8 @@ def get_rendered_original_stream(warc_filename, warc_offset, compressedendoffset
     r = requests.get(url, stream=True)
     # We handle decoding etc.
     r.raw.decode_content = False
-    logger.warn("Loading from: %s" % r.url)
-    logger.warn("Got status code %s" % r.status_code)
+    logger.debug("Loading from: %s" % r.url)
+    logger.debug("Got status code %s" % r.status_code)
     # Return the payload, or the record:
     if payload_only:
         # Parse the WARC, return the payload:
@@ -70,7 +70,6 @@ def get_rendered_original_stream(warc_filename, warc_offset, compressedendoffset
         # This makes sure we only get the first GZip chunk:
         s = DecompressingBufferedReader(stream=r.raw)
         warc_record = s.read()
-        logger.warn("RECORD: %s" % warc_record)
         return warc_record, 'application/warc'
 
 

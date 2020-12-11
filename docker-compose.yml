@@ -8,7 +8,8 @@ services:
         http_proxy: ${HTTP_PROXY}
         https_proxy: ${HTTPS_PROXY}
     environment:
-      - "KAFKA_BOOTSTRAP_SERVERS=kafka:9092"
+      - "KAFKA_LAUNCH_BROKER=kafka:9092"
+      - "KAFKA_LAUNCH_TOPIC=uris.candidates.fc"
       # Internal test systems
       - "CDX_SERVER=http://cdxserver:8080/tc"
       - "WAYBACK_SERVER=http://pywb:8080/test/"
@@ -21,6 +22,7 @@ services:
      - cdxserver
      - warc-server
      - webrender
+     - kafka
      - pywb
      - iiif
     ports:
