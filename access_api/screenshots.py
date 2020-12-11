@@ -52,12 +52,13 @@ def get_rendered_original_stream(warc_filename, warc_offset, compressedendoffset
 
     # Grab the payload from the WARC and return it.
     url = "%s%s?op=OPEN&user.name=%s&offset=%s" % (WEBHDFS_PREFIX, warc_filename, WEBHDFS_USER, warc_offset)
-    if compressedendoffset:
+    if compressedendoffset and int(compressedendoffset) > 0:
         url = "%s&length=%s" % (url, compressedendoffset)
     r = requests.get(url, stream=True)
     # We handle decoding etc.
     r.raw.decode_content = False
-    logger.info("Loading from: %s" % r.url)
+    logger.warn("Loading from: %s" % r.url)
+    logger.warn("Got status code %s" % r.status_code)
     # Return the payload, or the record:
     if payload_only:
         # Parse the WARC, return the payload:
@@ -68,7 +69,9 @@ def get_rendered_original_stream(warc_filename, warc_offset, compressedendoffset
     else:
         # This makes sure we only get the first GZip chunk:
         s = DecompressingBufferedReader(stream=r.raw)
-        return s, 'application/warc'
+        warc_record = s.read()
+        logger.warn("RECORD: %s" % warc_record)
+        return warc_record, 'application/warc'
 
 
 def full_and_thumb_jpegs(large_png, crop=False):

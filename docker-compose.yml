@@ -8,10 +8,15 @@ services:
         http_proxy: ${HTTP_PROXY}
         https_proxy: ${HTTPS_PROXY}
     environment:
+      - "KAFKA_BOOTSTRAP_SERVERS=kafka:9092"
+      # Internal test systems
       - "CDX_SERVER=http://cdxserver:8080/tc"
       - "WAYBACK_SERVER=http://pywb:8080/test/"
-      - "KAFKA_BOOTSTRAP_SERVERS=kafka:9092"
       - "WEBHDFS_PREFIX=http://warc-server:8000/by-filename/"
+      # Live systems
+      #- "CDX_SERVER=http://cdx.api.wa.bl.uk/data-heritrix"
+      #- "WAYBACK_SERVER=http://192.168.45.25:8180/archive/"
+      #- "WEBHDFS_PREFIX=http://hdfs.api.wa.bl.uk/webhdfs/v1"
     depends_on:
      - cdxserver
      - warc-server

@@ -214,7 +214,7 @@ class WARCServer(Resource):
         # Grab the payload from the WARC and return it.
         stream, content_type = get_rendered_original_stream(warc_filename,warc_offset, compressed_end_offset, payload_only=False)
 
-        return send_file(stream, mimetype=content_type)
+        return Response(stream, 200, mimetype=content_type)
 
 
 

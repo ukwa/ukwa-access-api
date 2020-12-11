@@ -31,12 +31,13 @@ def can_access(url):
     logger.info("Checking access at %s" % qurl)
     logger.warn("Checking access at %s" % qurl)
     r = requests.get(qurl)
+    logger.warn("Got %i" % r.status_code)
     if r.status_code < 200 or r.status_code >= 400:
         if r.status_code != None:
             abort(Response(r.reason, status=r.status_code))
         else:
             abort(Response(r.reason, status=500))
-            
+
     return True
 
 
