@@ -186,9 +186,9 @@ class IIIFRenderer(Resource):
     @nsr.response(200, 'The requested image, if available.')
     def get(self, pwid, region, size, rotation, quality, format):
         """
-        Access images of rendered archived web pages.
-        
-        Via the <a href="https://iiif.io/api/">IIIF</a> <a href="https://iiif.io/api/image/2.1/">Image API 2.1</a>.
+        IIIF images of archived web pages.
+
+        Access images of rendered archived web pages via the <a href="https://iiif.io/api/">IIIF</a> <a href="https://iiif.io/api/image/2.1/">Image API 2.1</a>.
         """
  
         app.logger.info("IIIF PWID: %s" % pwid)
@@ -217,7 +217,7 @@ class IIIFInfo(Resource):
     @nsr.response(200, 'The info.json for this image')
     def get(self, pwid):
         """
-        IIIF metadata.
+        IIIF Image information
         """
  
         app.logger.info("IIIF PWID: %s" % pwid)
@@ -246,6 +246,9 @@ class IIIFHelper(Resource):
     @nsr.response(307, 'Redirects to an IIIF URL.')
     def get(self, timestamp, url):
         """
+        
+        Generate an IIIF URL
+        
         Redirect to a suitable IIIF URL using a PWID with the given timestamp and url properly encoded. 
         
         """
