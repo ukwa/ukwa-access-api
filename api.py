@@ -133,7 +133,13 @@ ns = api.namespace('Query', path="/query", description='Query API for finding an
 @ns.param('timestamp', 'Target timestamp in 14-digit format, e.g. `20170510120000`. If unspecified, will direct to the most recent archived snapshot.',
           required=True)
 class WaybackResolver(Resource):
-    @ns.doc(id='get_wayback_resolver')
+    @ns.doc(id='get_wayback_resolver', vendor={ 
+      'x-codeSamples': [{ 
+        'lang': 'Shell',
+        'source': 'curl https://www.webarchive.org.uk/api/query/warc/19950101120000/http://portico.bl.uk/'
+      }
+      ]
+    })
     @ns.response(307, 'Redirects the incoming request to the most suitable representation of the URL. If the client is in a reading room, they will be redirected to their local acces gateway. If the client is off-site, they will be redirected to the Open UK Web Archive.')
     def get(self, timestamp, url):
         """
@@ -160,7 +166,7 @@ class CDXServer(Resource):
         """
         Lookup a URL
 
-        Queries our main index for URLs via the <a href="https://github.com/webrecorder/pywb/wiki/CDX-Server-API">CDX API</a>, as implemented by <a href="https://github.com/nla/outbackcdx">OutbackCDX</a>.
+        Queries our main index for URLs via the <a href="https://github.com/webrecorder/pywb/wiki/CDX-Server-API">CDX API</a>, as implemented by <a href="https://github.com/nla/outbackcdx">OutbackCDX</a> ([OutbackCDX API Spec.](https://nla.github.io/outbackcdx/api.html)).
         
         Note that our <a href="/wayback/archive/">Wayback service</a> also supports the Memento API as per https://tools.ietf.org/html/rfc7089
 
