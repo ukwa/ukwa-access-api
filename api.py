@@ -95,8 +95,7 @@ api = PatchedApi(app, version=API_VERSION, title=API_LABEL, doc=None,
                       <b>This is an early-stage prototype and may be changed without notice.</b>',
           info={ 
               "x-logo": {
-                #"url": "/ukwa/img/ukwa-2018-onwhite-close.svg",
-                "url": "https://dev.webarchive.org.uk/ukwa/img/ukwa-2018-onwhite-close.svg",
+                "url": "/ukwa/img/ukwa-2018-onwhite-close.svg",
                 "backgroundColor": "#FFFFFF",
                 "altText": "UK Web Archive logo"
                 }
