@@ -129,23 +129,21 @@ def allow_cross_origin_usage(response):
 ns = api.namespace('Query', path="/query", description='Query API for finding and resolving archived URL.')
 
 @ns.route('/resolve/<string:timestamp>/<path:url>')
-@ns.param('url', 'URL to find.', required=True)
-@ns.param('timestamp', 'Target timestamp in 14-digit format, e.g. `20170510120000`. If unspecified, will direct to the most recent archived snapshot.',
+@ns.param('url', 'URL to find.', example='http://portico.bl.uk', required=True)
+@ns.param('timestamp', 'Target timestamp in 14-digit format, e.g. `20170510120000`. If unspecified, will direct to the most recent archived snapshot.', example='20170510120000',
           required=True)
 class WaybackResolver(Resource):
-    @ns.doc(id='get_wayback_resolver', vendor={ 
-      'x-codeSamples': [{ 
+    @ns.doc(id='get_wayback_resolver', vendor = { 'x-codeSamples': [{ 
         'lang': 'Shell',
         'source': 'curl https://www.webarchive.org.uk/api/query/warc/19950101120000/http://portico.bl.uk/'
-      }
-      ]
-    })
+    }]})
     @ns.response(307, 'Redirects the incoming request to the most suitable representation of the URL. If the client is in a reading room, they will be redirected to their local acces gateway. If the client is off-site, they will be redirected to the Open UK Web Archive.')
     def get(self, timestamp, url):
         """
-        Resolve a timestamp and URL
+        Resolve an URL
         
         Redirects the incoming request to the most suitable archived version of a given URL, closest to the given timestamp. 
+
         Currently redirects to the open access part of the UK Web Archive only.
 
         """
@@ -234,15 +232,16 @@ nsr = api.namespace('IIIF', path="/iiif", description='Access screenshots of arc
 @nsr.param('rotation', 'IIIF image request <a href="https://iiif.io/api/image/2.1/#rotation">rotation (degrees)</a>.', required=True, default='0')
 @nsr.param('size', 'IIIF image request <a href="https://iiif.io/api/image/2.1/#size">size</a>.', required=True, default='full')
 @nsr.param('region', 'IIIF image request <a href="https://iiif.io/api/image/2.1/#region">region</a>.', required=True, default='full')
-@nsr.param('pwid', 'A <a href="https://tools.ietf.org/html/draft-pwid-urn-specification-09">Persistent Web IDentifier (PWID) URN</a>. The identifier must be URL-encoded or Base64 encoded UTF-8 text. <br/>For example, the pwid <br/>`urn:pwid:webarchive.org.uk:1995-04-18T15:56:00Z:page:http://portico.bl.uk/`<br/> must be encoded as: <br/><tt>urn%253Apwid%253Awebarchive.org.uk%253A1995-04-18T15%253A56%253A00Z%253Apage%253Ahttp%253A%252F%252Fportico.bl.uk%252F</tt><br/> or in Base64 as: <br>`dXJuOnB3aWQ6d2ViYXJjaGl2ZS5vcmcudWs6MTk5NS0wNC0xOFQxNTo1NjowMFo6cGFnZTpodHRwOi8vcG9ydGljby5ibC51ay8=`',
-          required=True)
+@nsr.param('pwid', 'A <a href="https://tools.ietf.org/html/draft-pwid-urn-specification-09">Persistent Web IDentifier (PWID) URN</a>. The identifier must be URL-encoded or Base64 encoded UTF-8 text. <br/>For example, the pwid <br/>`urn:pwid:webarchive.org.uk:1995-04-18T15:56:00Z:page:http://portico.bl.uk/`<br/> must be encoded as: <br/><tt>urn%3Apwid%3Awebarchive.org.uk%3A1995-04-18T15%3A56%3A00Z%3Apage%3Ahttp%3A%2F%2Fportico.bl.uk%2F</tt><br/> or in Base64 as: <br>`dXJuOnB3aWQ6d2ViYXJjaGl2ZS5vcmcudWs6MTk5NS0wNC0xOFQxNTo1NjowMFo6cGFnZTpodHRwOi8vcG9ydGljby5ibC51ay8=`',
+    example='urn%3Apwid%3Awebarchive.org.uk%3A1995-04-18T15%3A56%3A00Z%3Apage%3Ahttp%3A%2F%2Fportico.bl.uk%2F',
+    required=True)
 class IIIFRenderer(Resource):
     @nsr.doc(id='iiif_2', model=RenderedPageSchema)
     @nsr.produces(['image/png', 'image/jpeg'])
     @nsr.response(200, 'The requested image, if available.')
     def get(self, pwid, region, size, rotation, quality, format):
         """
-        IIIF images of archived web pages.
+        IIIF images
 
         Access images of rendered archived web pages via the <a href="https://iiif.io/api/">IIIF</a> <a href="https://iiif.io/api/image/2.1/">Image API 2.1</a>.
         """
@@ -265,15 +264,23 @@ class IIIFRenderer(Resource):
         return response
 
 @nsr.route('/2/<path:pwid>/info.json')
-@nsr.param('pwid', 'A <a href="https://tools.ietf.org/html/draft-pwid-urn-specification-09">Persistent Web IDentifier (PWID) URN</a>. The identifier must be URL-encoded or Base64 encoded UTF-8 text. <br/>For example, the pwid <br/>`urn:pwid:webarchive.org.uk:1995-04-18T15:56:00Z:page:http://portico.bl.uk/`<br/> must be encoded as: <br/><tt>urn%253Apwid%253Awebarchive.org.uk%253A1995-04-18T15%253A56%253A00Z%253Apage%253Ahttp%253A%252F%252Fportico.bl.uk%252F</tt><br/> or in Base64 as: <br>`dXJuOnB3aWQ6d2ViYXJjaGl2ZS5vcmcudWs6MTk5NS0wNC0xOFQxNTo1NjowMFo6cGFnZTpodHRwOi8vcG9ydGljby5ibC51ay8=`',
-          required=True)
+@nsr.param('pwid', 'A <a href="https://tools.ietf.org/html/draft-pwid-urn-specification-09">Persistent Web IDentifier (PWID) URN</a>. The identifier should be URL-encoded (or Base64 encoded) UTF-8 text. <br/>For example, the pwid <br/>`urn:pwid:webarchive.org.uk:1995-04-18T15:56:00Z:page:http://portico.bl.uk/`<br/> must be encoded as: <br/><tt>urn%3Apwid%3Awebarchive.org.uk%3A1995-04-18T15%3A56%3A00Z%3Apage%3Ahttp%3A%2F%2Fportico.bl.uk%2F</tt><br/> or in Base64 as: <br>`dXJuOnB3aWQ6d2ViYXJjaGl2ZS5vcmcudWs6MTk5NS0wNC0xOFQxNTo1NjowMFo6cGFnZTpodHRwOi8vcG9ydGljby5ibC51ay8=`',
+    example='urn%3Apwid%3Awebarchive.org.uk%3A1995-04-18T15%3A56%3A00Z%3Apage%3Ahttp%3A%2F%2Fportico.bl.uk%2F',
+    required=True)
 class IIIFInfo(Resource):
-    @nsr.doc(id='iiif_2_info')
+    @nsr.doc(id='iiif_2_info', vendor={
+        'x-codeSamples': [{
+            'lang': 'Shell',
+            'source': 'curl https://www.webarchive.org.uk/api/iiif/2/urn%3Apwid%3Awebarchive.org.uk%3A1995-04-18T15%3A56%3A00Z%3Apage%3Ahttp%3A%2F%2Fportico.bl.uk%2F/info.json'
+        }]
+    })
     @nsr.produces(['application/json'])
     @nsr.response(200, 'The info.json for this image')
     def get(self, pwid):
         """
-        IIIF Image information
+        IIIF info
+
+        Access information about images of rendered archived web pages via the <a href="https://iiif.io/api/">IIIF</a> <a href="https://iiif.io/api/image/2.1/#image-information-request-uri-syntax">Image API 2.1</a>.
         """
  
         app.logger.info("IIIF PWID: %s" % pwid)
@@ -303,7 +310,7 @@ class IIIFHelper(Resource):
     def get(self, timestamp, url):
         """
         
-        Generate an IIIF URL
+        IIIF helper
         
         Redirect to a suitable IIIF URL using a PWID with the given timestamp and url properly encoded. 
         
@@ -324,7 +331,7 @@ class Crawler(Resource):
     @nss.produces(['application/json'])
     def get(self):
         """
-        Summarise recent crawling activity
+        Recent crawl stats
 
         This returns a summary of recent crawling activity.
         """
@@ -364,7 +371,7 @@ class SaveThisPage(Resource):
     @nss.produces(['application/json'])
     def get(self, url):
         """
-        'Save This Page' service.
+        Save an URL
 
         Use this to request a URL be saved. If it's in scope for the UK Web Archive, it will be queued for crawling ASAP. If it's out of scope if will be logged for review, to see if we can include in in future.
 
