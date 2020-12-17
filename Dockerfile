@@ -9,7 +9,7 @@ COPY . .
 
 # Pick up API version from the DOCKER_TAG
 # https://docs.docker.com/docker-hub/builds/advanced/#environment-variables-for-building-and-testing
-ENV API_VERSION $DOCKER_TAG
+ARG API_VERSION=${DOCKER_TAG}
 
 CMD gunicorn -c gunicorn.ini api:app
 
