@@ -10,7 +10,7 @@ chardet==4.0.0
 click==7.1.2
 filelock==3.0.12
 Flask==1.1.2
-flask-restx==0.2.0
+flask-restx @ git+https://github.com/anjackson/flask-restx/@4e2b2341e77e82a6826768bb4fd4bfc6db49260f
 gunicorn==20.0.4
 idna==2.10
 importlib-metadata==3.3.0
