@@ -29,14 +29,13 @@ def can_access(url):
     """
     qurl = "%s%s" %(WAYBACK_SERVER, url)
     logger.info("Checking access at %s" % qurl)
-    logger.warn("Checking access at %s" % qurl)
     r = requests.get(qurl)
-    logger.warn("Got %i" % r.status_code)
     if r.status_code < 200 or r.status_code >= 400:
+        logger.warn("Got %i %s" % (r.status_code, r.reason) )
         if r.status_code != None:
-            abort(Response(r.reason, status=r.status_code))
+            abort(r.status_code)
         else:
-            abort(Response(r.reason, status=500))
+            abort(500)
 
     return True
 

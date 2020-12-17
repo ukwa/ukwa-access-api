@@ -8,6 +8,7 @@ from urllib.parse import quote
 from base64 import b64decode
 
 from flask import Flask, redirect, url_for, jsonify, request, send_file, abort, render_template, Response
+from flask.logging import default_handler
 from flask_restx import Resource, Api, fields
 from cachelib import FileSystemCache
 
@@ -18,9 +19,6 @@ from access_api.analysis import load_fc_analysis
 from access_api.cdx import lookup_in_cdx, list_from_cdx, can_access
 from access_api.screenshots import get_rendered_original_stream, full_and_thumb_jpegs
 from access_api.save import KafkaLauncher
-
-# Set the base log level
-logging.getLogger().setLevel(logging.INFO)
 
 # Get the core Flask setup working:
 app = Flask(__name__, template_folder='access_api/templates', static_folder='access_api/static')
@@ -33,6 +31,17 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1, x_port=1, x_prefix=1)
 app.config['SECRET_KEY'] = os.environ.get('APP_SECRET', 'dev-mode-key')
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['CACHE_FOLDER'] = os.environ.get('CACHE_FOLDER', '__cache__')
+
+# Integrate with gunicorn logging if present:
+if "gunicorn" in os.environ.get("SERVER_SOFTWARE", ""):
+    gunicorn_logger = logging.getLogger('gunicorn.error')
+    app.logger.handlers = gunicorn_logger.handlers
+    app.logger.setLevel(gunicorn_logger.level)
+
+# Integrate root and module logging with Flask:
+root = logging.getLogger()
+root.addHandler(default_handler)
+root.setLevel(app.logger.level)
 
 # Set up a persistent cache for screenshots etc.
 screenshot_cache = FileSystemCache(os.path.join(app.config['CACHE_FOLDER'], 'screenshot_cache'), threshold=0, default_timeout=0)
@@ -429,7 +438,7 @@ def render_raw():
 
     # Must have url or pwid:
     if not url and not pwid:
-        abort(Response('Must specify URL or PWID', status=400))
+        abort(400, description='Must specify URL or PWID')
 
     if pwid:
         # Decode Base64 if needed
@@ -445,22 +454,22 @@ def render_raw():
             if decoded.startswith('urn:pwid:'):
                 pwid = decoded
             else:
-                abort(Response(f'Could not decode PWID {pwid}', status=400))
+                abort(400, description=f'Could not decode PWID {pwid}')
 
         # Parse the PWID
         # urn:pwid:webarchive.org.uk:1995-04-18T15:56:00Z:page:http://portico.bl.uk/    
         m = re.compile('^urn:pwid:([^:]+):([^Z]+Z):([^:]+):(.+)$')
         parts = m.match(pwid)
         if not parts or len(parts.groups()) != 4:
-            abort(Response(f'Could not parse PWID {pwid}', status=400))
+            abort(400, description=f'Could not parse PWID {pwid}')
 
         # Not all archives...
         if parts.group(1) != 'webarchive.org.uk':
-            abort(Response(f'Only webarchive.org.uk PWIDs are supported.', status=400))
+            abort(400, description=f'Only webarchive.org.uk PWIDs are supported.')
 
         # Not all scopes...
         if parts.group(3) != 'page':
-            abort(Response(f'Only page PWIDs are supported.', status=400))
+            abort(400, description=f'Only page PWIDs are supported.')
 
         # Continue with all that is good:
         url = parts.group(4)
@@ -471,8 +480,8 @@ def render_raw():
 
     # Check with a Wayback service to see if this URL is allowed:
     if not can_access(url):
-        print("GAHHHH")
-        return
+        # ABORT actually handled in can_access
+        abort(451)
 
     # Rebuild the PWID:
     pwid = gen_pwid(target_date, url)
@@ -506,7 +515,7 @@ def render_raw():
         r = requests.get(WEBRENDER_ARCHIVE_SERVER,
                             params={ 'url': url, 'show_screenshot': True, 'target_date': target_date })
         if r.status_code != 200:
-            abort(Response(r.reason, status=r.status_code))
+            abort(r.status_code, description=r.reason)
         stream = io.BytesIO(r.content)
         content_type = "image/png"
 
