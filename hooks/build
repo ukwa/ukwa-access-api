@@ -1,3 +1,2 @@
 #!/bin/bash
-echo docker build --build-arg "API_VERSION=$DOCKER_TAG" -t $IMAGE_NAME .
-docker build --build-arg "API_VERSION=$DOCKER_TAG" -t $IMAGE_NAME .
+docker build --build-arg API_VERSION=$DOCKER_TAG -t $IMAGE_NAME .

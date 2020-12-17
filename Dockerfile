@@ -10,6 +10,7 @@ COPY . .
 # Pick up API version from a build arg.
 # See hooks/build.
 ARG API_VERSION=dev
+ENV API_VERSION=$API_VERSION
 
 CMD gunicorn -c gunicorn.ini api:app
 
