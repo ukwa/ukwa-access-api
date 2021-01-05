@@ -343,7 +343,7 @@ class Crawler(Resource):
 
         This returns a summary of recent crawling activity.
         """
-        stats = load_stats()
+        stats = load_fc_analysis()
         try:
             return jsonify(stats)
         except Exception as e:
