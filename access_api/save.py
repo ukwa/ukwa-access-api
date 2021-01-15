@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 class KafkaLauncher(object):
     '''
-    FIXME This is copypasta and needs moving to a shared library
+    FIXME This is copypasta from crawl-streams and needs to be part of the shared library
     '''
 
     def __init__(self, kafka_server, topic=None):
@@ -26,6 +26,7 @@ class KafkaLauncher(object):
         '''
         self.producer = KafkaProducer(
             bootstrap_servers=kafka_server,
+            acks='all', # Ensure messages are committed before returning
             value_serializer=lambda v: json.dumps(v).encode('utf-8'))
         self.topic = topic
 
