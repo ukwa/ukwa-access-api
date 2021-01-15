@@ -85,4 +85,5 @@ class KafkaLauncher(object):
         self.send_message(key, curim)
 
     def flush(self):
-        self.producer.flush()
+        # Flush with a timeout (otherwise nothing happens):
+        self.producer.flush(timeout=10)

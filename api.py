@@ -4,6 +4,7 @@ import re
 import json
 import logging
 import requests
+import threading
 from urllib.parse import quote
 from base64 import b64decode
 
@@ -358,23 +359,6 @@ nsn = api.namespace('Save', path="/save", description='Submit URLs to be archive
 @nsn.route('/<path:url>')
 class SaveThisPage(Resource):
 
-    kafka_launcher = None
-
-    def launcher(self, url):
-        if self.kafka_launcher is None:
-            broker = os.environ.get('KAFKA_LAUNCH_BROKER', None)
-            topic = os.environ.get('KAFKA_LAUNCH_TOPIC', None)
-            if broker and topic:
-                self.kafka_launcher = KafkaLauncher(broker, topic)
-
-        # Raise error if not configured:
-        if self.kafka_launcher is None:
-            raise Exception("Crawl queue not available!")
-
-        # And set enqueue:
-        self.kafka_launcher.launch(url, "save-page-now", webrender_this=True,
-                                   launch_ts='now', inherit_launch_ts=False, forceFetch=True)
-
     @nss.doc(id='save_this_page')
     @nss.produces(['application/json'])
     def get(self, url):
@@ -387,7 +371,13 @@ class SaveThisPage(Resource):
         sr = { 'url': url, 'result': {} }
         # First enqueue for crawl, if configured
         try:
-            self.launcher(url)
+            # Get the launcher:
+            kl = get_kafka_launcher()
+            # And enqueue:
+            kl.launch(url, "save-page-now", webrender_this=True,
+                                   launch_ts='now', inherit_launch_ts=False, forceFetch=True)
+            kl.flush()
+            # Report outcome:
             sr['result']['ukwa'] = {'event': 'save-page-now',  'status': 201, 'reason': 'Crawl Requested' }
         except Exception as e:
             app.logger.exception("Exception when saving URL!", e)
@@ -404,8 +394,25 @@ class SaveThisPage(Resource):
 
         return sr
 
+# Get a launcher, stored in the global application context:
+kafka_launcher = None
+def get_kafka_launcher():
+    global kafka_launcher
 
+    # Thread-safe launcher setup:
+    lock = threading.Lock()    
+    with lock:
+        if kafka_launcher is None:
+            broker = os.environ.get('KAFKA_LAUNCH_BROKER', None)
+            topic = os.environ.get('KAFKA_LAUNCH_TOPIC', None)
+            if broker and topic:
+                kafka_launcher = KafkaLauncher(broker, topic)
 
+    # Raise error if not configured:
+    if kafka_launcher is None:
+        raise Exception("Crawl queue not available!")
+
+    return kafka_launcher
 
 # ------------------------------
 # ------------------------------
