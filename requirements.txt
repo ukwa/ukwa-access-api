@@ -22,7 +22,7 @@ MarkupSafe==1.1.1
 mmh3==2.5.1
 packaging==19.0
 pathtools==0.1.2
-Pillow==8.0.1
+Pillow==8.1.1
 pycparser==2.19
 pyparsing==2.4.7
 pyrsistent==0.17.3
