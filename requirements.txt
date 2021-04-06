@@ -36,7 +36,7 @@ six==1.15.0
 surt==0.3.1
 tldextract==3.1.0
 typing-extensions==3.7.4.3
-urllib3==1.26.2
+urllib3==1.26.4
 warcio==1.7.4
 watchdog==1.0.1
 webencodings==0.5.1
