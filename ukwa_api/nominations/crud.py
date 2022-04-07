@@ -20,6 +20,7 @@ def create_nomination(db: Session, nomination: schemas.NominationCreate):
 	    title=nomination.title,
 	    name=nomination.name,
 	    email=nomination.email,
+        status=schemas.NominationStatus.nominated,
 	)
     for tag in nomination.tags:
         db_tag = db.query(models.Tag).filter(models.Tag.id == tag).first()

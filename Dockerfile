@@ -1,4 +1,4 @@
-FROM python:3.8
+FROM python:3.9
 
 WORKDIR /usr/src/access
 
@@ -12,6 +12,9 @@ COPY . .
 ARG API_VERSION=dev
 ENV API_VERSION=$API_VERSION
 
-CMD gunicorn -c gunicorn.ini api:app
+# Override this to mount the service at a prefix, e.g. /api/v1/
+ENV ROOT_PATH="/"
+
+CMD ["uvicorn", "ukwa_api.main:app", "--host", "0.0.0.0", "--port", "8000", "--root-path", "${ROOT_PATH}"]
 
 

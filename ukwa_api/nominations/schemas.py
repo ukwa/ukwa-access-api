@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import List, Optional, Any
 from datetime import datetime
 
@@ -5,6 +6,11 @@ from pydantic import BaseModel, Field, AnyHttpUrl, EmailStr
 from pydantic.utils import GetterDict
 
 from fastapi import APIRouter
+
+class NominationStatus(str, Enum):
+    nominated = "nominated"
+    out_of_scope = "out-of-scope"
+    crawl_requested = "crawl-requested"
 
 # As SQLAlchemy requires a Tag model, this needs mapping to a string array:
 class NominationGetter(GetterDict):
@@ -34,7 +40,7 @@ class NominationBase(BaseModel):
 class Nomination(NominationBase):
     id: str
     href: str
-    status: Optional[str] = None
+    status: Optional[NominationStatus] = NominationStatus.nominated
     tags: List[str] = []
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

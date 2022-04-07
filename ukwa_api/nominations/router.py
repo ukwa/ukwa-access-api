@@ -31,7 +31,7 @@ router = APIRouter()
 schemas.NominationGetter.init_router(router)
 
 # Nominating a URL, should redirect to a Nomination record (see below):
-@router.post("/nominations", 
+@router.post("/", 
     response_model=schemas.Nomination, 
     status_code=status.HTTP_201_CREATED,
     summary="Nominate a URL",
@@ -55,7 +55,7 @@ def create_nomination(nomination: schemas.NominationCreate, response: Response, 
 
 
 # List nominations
-@router.get("/nominations", response_model=Page[schemas.Nomination])
+@router.get("/", response_model=Page[schemas.Nomination])
 def list_nominations(format: Optional[ResponseFormat] = ResponseFormat.json, db: Session = Depends(get_db)):
     #nominations = crud.get_nominations(db)
     #nominations_page = paginate(nominations)
@@ -70,12 +70,11 @@ def list_nominations(format: Optional[ResponseFormat] = ResponseFormat.json, db:
 #   href pointing to self
 #   status etc.
 # but without any sensitive fields (name, email, note)
-@router.get("/nominations/{nomination_id}", response_model=schemas.Nomination)
+# e.g. 206c4142-ade7-4116-b434-db5cf3fb35db
+# e.g. href = /nominations/206c4142-ade7-4116-b434-db5cf3fb35db
+@router.get("/{nomination_id}", response_model=schemas.Nomination)
 def get_nomination(nomination_id: str, request: Request, db: Session = Depends(get_db)):
-    print("Find")
     nom = crud.get_nomination(db, nomination_id)
-    nom.href = request.url.path
-    print(nom)
     return nom
 
 
