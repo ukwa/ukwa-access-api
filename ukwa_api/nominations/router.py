@@ -25,7 +25,9 @@ from ..dependencies import get_db, engine
 
 models.Base.metadata.create_all(bind=engine)
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/nominations"
+)
 
 # Set up so objects can include links to routes
 schemas.NominationGetter.init_router(router)

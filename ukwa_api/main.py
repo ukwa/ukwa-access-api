@@ -7,7 +7,8 @@ from fastapi.staticfiles import StaticFiles
 
 from .dependencies import get_db
 from .nominations import router as nominations
-from .resources import router as resources
+from .mementos import router as mementos
+from .iiif import router as iiif
 
 API_VERSION = os.environ.get('API_VERSION', '0.0.0-dev')
 
@@ -83,14 +84,16 @@ app.add_middleware(
 # Hook in the module routes
 #
 app.include_router(
-    resources.router,
+    mementos.router,
     tags=["Archived URLs"],
-    prefix="/mementos",
+)
+app.include_router(
+    iiif.router,
+    tags=["IIIF Image API"],
 )
 app.include_router(
     nominations.router,
     tags=["Nominations"],
-    prefix="/nominations",
     dependencies=[Depends(get_db)],
 )
 

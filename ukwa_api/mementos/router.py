@@ -33,7 +33,9 @@ from ..cdx import lookup_in_cdx, list_from_cdx, can_access, CDX_SERVER, get_warc
 logger = logging.getLogger(f"uvicorn.error.{__name__}")
 
 # Setup a router:
-router = APIRouter()
+router = APIRouter(
+    prefix='/mementos'
+)
 
 # Set up so objects can include links to routes
 #schemas.NominationGetter.init_router(router)
@@ -147,6 +149,7 @@ async def get_warc(
 #    @ns.response(200, 'The corresponding WARC record.')
 
         # Check access:
+        logger.info("Checking %s %s" % (timestamp, url))
         can_access(url)
 
         # Query CDX Server for the item
