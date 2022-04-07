@@ -3,6 +3,7 @@
 This file declares the routes for the Resources module.
 """
 import os
+import logging
 import requests
 from enum import Enum
 from typing import List, Optional
@@ -17,31 +18,29 @@ from pydantic import AnyHttpUrl
 #from fastapi_pagination import Page, add_pagination
 #from fastapi_pagination.ext.sqlalchemy import paginate
 
-#from . import crud, models, schemas
+from . import schemas
 #from .rss import ResponseFormat, nominations_to_rss
 #from ..dependencies import get_db, engine
 
+from ..analysis import load_fc_analysis
+from ..cdx import lookup_in_cdx, list_from_cdx, can_access, CDX_SERVER, get_warc_stream
+#from ..screenshots import get_rendered_original_stream, full_and_thumb_jpegs
+#from ..crawl_kafka import KafkaLauncher
+
 #models.Base.metadata.create_all(bind=engine)
 
+# Create a logger, beneath the Uvicorn error logger:
+logger = logging.getLogger(f"uvicorn.error.{__name__}")
+
+# Setup a router:
 router = APIRouter()
 
 # Set up so objects can include links to routes
 #schemas.NominationGetter.init_router(router)
 
-# Get the location of the CDX server:
-CDX_SERVER = os.environ.get("CDX_SERVER", "http://cdx.api.wa.bl.uk/data-heritrix")
-
-class LookupMatchType(Enum):
-    exact = 'exact'
-    prefix = 'prefix'
-    host = 'host'
-    domain = 'domain'
-    range = 'range'
-
-class LookupSort(Enum):
-    default = 'default'
-    closest = 'closest'
-    reverse = 'reverse'
+#
+#
+#
 
 @router.get("/cdx", 
     summary="Lookup Archived URLs",
@@ -67,12 +66,12 @@ async def lookup_url(
         description="URL to look for (will canonicalize the URL before running the query).",
         example='http://portico.bl.uk/'
     ),
-    matchType: Optional[LookupMatchType] = Query(
-        LookupMatchType.exact,
+    matchType: Optional[schemas.LookupMatchType] = Query(
+        schemas.LookupMatchType.exact,
         title='Type of match to look for.'
     ),
-    sort: Optional[LookupSort] = Query(
-        LookupSort.default,
+    sort: Optional[schemas.LookupSort] = Query(
+        schemas.LookupSort.default,
         title='Order to return results.'
     ),
 ):
@@ -92,8 +91,27 @@ async def lookup_url(
     return StreamingResponse(r.iter_content(chunk_size=10*1024),
                 media_type=r.headers['Content-Type'])
 
+#
+#
+#
+
+path_ts = Path(
+        ...,
+        title='The 14-digit timestamp to use as a target. Will go to the most closest matching archived snapshot.',
+        example='19950630120000',
+    )
+
+path_url = Path(
+        ...,
+        title="URL to resolve.",
+        description="...",
+        example='http://portico.bl.uk/',
+    )
 
 
+#
+#
+#
 
 @router.get("/resolve/{timestamp}/{url:path}",
     summary="Resolve Archived URLs",
@@ -105,18 +123,52 @@ Currently redirects to the open access part of the UK Web Archive only.
     """
 )
 async def resolve_url(
-    timestamp: str = Path(
-        ...,
-        title='The 14-digit timestamp to use as a target.',
-        example='19950631120000',
-    ),
-    url: AnyHttpUrl = Path(
-        ...,
-        title="URL to resolve.",
-        description="...",
-        example='http://portico.bl.uk/',
-    ),
+    timestamp: str = path_ts,
+    url: AnyHttpUrl = path_url,
 ):
     return RedirectResponse('/wayback/archive/%s/%s' % (timestamp, url))
 
-#add_pagination(router)
+#
+#
+#
+
+@router.get("/warc/{timestamp}/{url:path}",
+    summary="Get a WARC Record",
+    response_class=StreamingResponse,
+    description="""
+Look up a URL and timestamp and get the corresponding raw WARC record.
+    """
+)
+async def get_warc(
+    timestamp: str = path_ts,
+    url: AnyHttpUrl = path_url,
+):
+#    @ns.produces(['application/warc'])
+#    @ns.response(200, 'The corresponding WARC record.')
+
+        # Check access:
+        can_access(url)
+
+        # Query CDX Server for the item
+        (warc_filename, warc_offset, compressed_end_offset) = lookup_in_cdx(url, timestamp)
+
+        logger.error("Getting record: %s %s %s" % (warc_filename, warc_offset, compressed_end_offset))
+
+        # If not found, say so:
+        if warc_filename is None:
+            abort(404)
+
+        # Grab the payload from the WARC and return it.
+        stream, content_type = get_warc_stream(warc_filename,warc_offset, compressed_end_offset, payload_only=False)
+
+        # Wrap as generator
+        # https://fastapi.tiangolo.com/advanced/custom-response/#using-streamingresponse-with-file-like-objects
+        def iterfile():
+            while True:
+                chunk = stream.read(10240)
+                if len(chunk) > 0:
+                    yield chunk
+                else:
+                    break
+
+        return StreamingResponse(iterfile(), media_type=content_type)

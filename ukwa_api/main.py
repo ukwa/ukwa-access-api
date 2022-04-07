@@ -91,13 +91,11 @@ app.include_router(
     nominations.router,
     tags=["Nominations"],
     prefix="/nominations",
+    dependencies=[Depends(get_db)],
 )
 
-#app.include_router(items.router)
-#app.include_router(
-#    admin.router,
-#    prefix="/admin",
-#    tags=["admin"],
-#    dependencies=[Depends(get_token_header)],
-#    responses={418: {"description": "I'm a teapot"}},
-#)
+# Just an endpoint for checking the service is up:
+@app.get("/ping", include_in_schema=False)
+async def root():
+    return {"message": "pong!"}
+

@@ -6,21 +6,30 @@ import xml.dom.minidom
 
 from requests.utils import quote
 from collections import OrderedDict
-from flask import Flask, redirect, url_for, jsonify, request, send_file, abort, render_template, Response
+
+from warcio.recordloader import ArcWarcRecordLoader
+from warcio.bufferedreaders import DecompressingBufferedReader
 
 # Get the Wayback endpoint to check for access rights:
 # (default to OA one so we don't do the wrong thing if this is unset)
 WAYBACK_SERVER = os.environ.get("WAYBACK_SERVER", "https://www.webarchive.org.uk/wayback/archive/")
 
-# Get the CDX Server
-CDX_SERVER = os.environ.get('CDX_SERVER','http://localhost:9090/fc')
+# Get the location of the CDX server:
+CDX_SERVER = os.environ.get("CDX_SERVER", "http://cdx.api.wa.bl.uk/data-heritrix")
+
+# Get the WebHDFS service:
+WEBHDFS_PREFIX = os.environ.get('WEBHDFS_PREFIX', 'http://warc-server.api.wa.bl.uk/webhdfs/v1/by-filename/')
+WEBHDFS_USER = os.environ.get('WEBHDFS_USER', 'access')
 
 # Formats
 WAYBACK_TS_FORMAT = '%Y%m%d%H%M%S'
 ISO_TS_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
 
-logger = logging.getLogger(__name__)
+# Create a logger, beneath the Uvicorn error logger:
+logger = logging.getLogger(f"uvicorn.error.{__name__}")
 
+
+# Check if a URL is open access:
 def can_access(url):
     """
     Checks if access to this URL is allowed.
@@ -110,3 +119,35 @@ def list_from_cdx(qurl):
             logger.exception(e)
 
     return result_set
+
+def get_warc_stream(warc_filename, warc_offset, compressedendoffset, payload_only=True):
+    """
+    Grabs a resource.
+    """
+    # If not found, say so:
+    if warc_filename is None:
+        return None, None
+
+    # Grab the payload from the WARC and return it.
+    url = "%s%s?op=OPEN&user.name=%s&offset=%s" % (WEBHDFS_PREFIX, warc_filename, WEBHDFS_USER, warc_offset)
+    if compressedendoffset and int(compressedendoffset) > 0:
+        url = "%s&length=%s" % (url, compressedendoffset)
+    r = requests.get(url, stream=True)
+    # We handle decoding etc.
+    r.raw.decode_content = False
+    logger.info("Loading from: %s" % r.url)
+    logger.info("Got status code %s" % r.status_code)
+    # Return the payload, or the record:
+    if payload_only:
+        # Parse the WARC, return the payload:
+        rl = ArcWarcRecordLoader()
+        record = rl.parse_record_stream(DecompressingBufferedReader(stream=r.raw))
+        #return record.raw_stream, record.content_type
+        return record.content_stream(), record.content_type
+    else:
+        # This makes sure we only get the first GZip chunk:
+        s = DecompressingBufferedReader(stream=r.raw)
+        #warc_record = s.read()
+        return s, 'application/warc'
+
+
