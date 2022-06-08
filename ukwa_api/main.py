@@ -5,6 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.staticfiles import StaticFiles
 
+from prometheus_fastapi_instrumentator import Instrumentator
+
 from .dependencies import get_db
 from .nominations import router as nominations
 from .mementos import router as mementos
@@ -29,6 +31,13 @@ tags_metadata = [
             "url": "https://www.webarchive.org.uk/ukwa/nominate/",
         },
     },
+    {
+        "name": "IIIF Image API",
+        "description": "IIIF Image API for accessing screenshots of archived web pages.",
+    },
+    {
+        "name": "Internal",
+    },
 ]
 
 app = FastAPI(
@@ -36,6 +45,9 @@ app = FastAPI(
     title="UK Web Archive API"
 )
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Add Prometheus integration:
+instrumentator = Instrumentator().instrument(app).expose(app, tags=['Internal'])
 
 #
 # Add Logo.

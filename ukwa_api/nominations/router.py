@@ -19,6 +19,10 @@ from sqlalchemy.orm import Session
 from fastapi_pagination import Page, add_pagination
 from fastapi_pagination.ext.sqlalchemy import paginate
 
+from typing import Callable
+from prometheus_fastapi_instrumentator.metrics import Info
+from prometheus_client import Counter
+
 from . import crud, models, schemas
 from .rss import ResponseFormat, nominations_to_rss
 from ..dependencies import get_db, engine
@@ -31,6 +35,12 @@ router = APIRouter(
 
 # Set up so objects can include links to routes
 schemas.NominationGetter.init_router(router)
+
+# Just creating and using metrics is sufficient for them to be included:
+nominations_accepted = Counter(
+    'ukwa_api_nominations_accepted', 
+    'UKWA API counter of nominations accepted.'
+)
 
 # Nominating a URL, should redirect to a Nomination record (see below):
 @router.post("/", 
@@ -51,6 +61,7 @@ Any name, email or note you submit will _not_ be accessible via this API.
     )
 def create_nomination(nomination: schemas.NominationCreate, response: Response, db: Session = Depends(get_db)):
     nom = crud.create_nomination(db, nomination)
+    nominations_accepted.inc()
     nom.href = router.url_path_for('get_nomination', nomination_id=nom.id)
     response.headers['Location'] = nom.href
     return nom

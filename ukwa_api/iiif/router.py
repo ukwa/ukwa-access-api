@@ -3,8 +3,8 @@
 This file declares the routes for the IIIF module.
 """
 import os
+import io
 import logging
-import requests
 from enum import Enum
 from typing import List, Optional
 
@@ -15,11 +15,17 @@ from fastapi.responses import RedirectResponse, JSONResponse, PlainTextResponse,
 from pydantic import AnyHttpUrl
 
 from cachelib import FileSystemCache
+import httpx
 
+#from ..cdx import lookup_in_cdx, list_from_cdx, can_access, CDX_SERVER, get_warc_stream
 from ..mementos.router import path_ts, path_url
+from ..cdx import can_access
 from ..pwid import gen_pwid, parse_pwid
 
 #from . import schemas
+
+# Default timeout for long operations
+TIMEOUT = 5.0*60
 
 # Create a logger, beneath the Uvicorn error logger:
 logger = logging.getLogger(f"uvicorn.error.{__name__}")
@@ -36,9 +42,6 @@ screenshot_cache = FileSystemCache(os.path.join(CACHE_FOLDER, 'screenshot_cache'
 # Get the location of the web rendering server:
 WEBRENDER_ARCHIVE_SERVER = os.environ.get("WEBRENDER_ARCHIVE_SERVER", "http://webrender:8010/render")
 
-# Get the location of the CDX server:
-#CDX_SERVER = os.environ.get("CDX_SERVER", "http://cdx:9090/tc")
-
 # Get the location of the IIIF server:
 IIIF_SERVER= os.environ.get("IIIF_SERVER", "http://iiif:8182")
 
@@ -48,7 +51,7 @@ IIIF_SERVER= os.environ.get("IIIF_SERVER", "http://iiif:8182")
 #
 
 @router.get("/screenshot/{timestamp}/{url:path}",
-    summary="Redirects to an IIIF URL.",
+    summary="Get Screenshot URL",
     response_class=RedirectResponse,
     description="""
 Redirect to a suitable IIIF URL using a PWID with the given timestamp and URL properly encoded. 
@@ -60,6 +63,7 @@ async def resolve_url(
 ):
     pwid = gen_pwid(timestamp, url)
     iiif_url = router.url_path_for('iiif_renderer', pwid=pwid, region='0,0,1024,1024', size='600,', rotation=0, quality='default', format='png')
+    logger.info(f"About to return {iiif_url}")
     return RedirectResponse(iiif_url)
 
 
@@ -68,7 +72,7 @@ async def resolve_url(
 #
 
 @router.get("/2/{pwid}/{region}/{size}/{rotation}/{quality}.{format}",
-    summary="",
+    summary="Get Image",
     #response_class=,
     description="""
     """
@@ -76,7 +80,7 @@ async def resolve_url(
 async def iiif_renderer(
     pwid, region, size, rotation, quality, format, request: Request
 ):
-    logger.info(f"GOT pwid={pwid}")
+    logger.info(f"iiif_renderer pwid={pwid}")
 
     # Re-encode the PWID for passing on (no-op on base64 encoded ones):
     #pwid_encoded = quote(pwid, safe='')
@@ -84,19 +88,21 @@ async def iiif_renderer(
     logger.info(request.headers)
 
     proxies = {
-        "http": None,
-        "https": None,
+        "http://": None,
+        "https://": None,
     }
 
     # Proxy requests to IIIF server:
-    r = requests.request(
-        method='GET',
-        url=f"{IIIF_SERVER}/iiif/2/{pwid}/{region}/{size}/{rotation}/{quality}.{format}",
-        headers={key: value for (key, value) in request.headers.items() if key != 'Host'},
-        proxies=proxies
-        )
+    iiif_url = f"{IIIF_SERVER}/iiif/2/{pwid}/{region}/{size}/{rotation}/{quality}.{format}"
+    logger.info(f"Getting iiif_url {iiif_url}")
+    async with httpx.AsyncClient(proxies=proxies) as client:
+        r = await client.get(
+            url=iiif_url,
+            headers={key: value for (key, value) in request.headers.items() if key != 'Host'},
+            timeout=TIMEOUT,
+            )
     # Grab the headers:
-    headers = [(name, value) for (name, value) in r.raw.headers.items()]
+    headers = [(name, value) for (name, value) in r.headers.items()]
 
     # Just pass the response back:
     response = Response(content=r.content, status_code=r.status_code, headers=r.headers)
@@ -126,7 +132,7 @@ class IIIFRenderer(Resource):
         Access images of rendered archived web pages via the <a href="https://iiif.io/api/">IIIF</a> <a href="https://iiif.io/api/image/2.1/">Image API 2.1</a>.
         """
  
-        app.logger.info("IIIF PWID: %s" % pwid)
+        logger.info("IIIF PWID: %s" % pwid)
 
         # Re-encode the PWID for passing on:
         pwid_encoded = quote(pwid, safe='')
@@ -138,7 +144,7 @@ class IIIFRenderer(Resource):
             headers={key: value for (key, value) in request.headers if key != 'Host'}
             )
 
-        headers = [(name, value) for (name, value) in resp.raw.headers.items()]
+        headers = [(name, value) for (name, value) in resp.headers.items()]
 
         response = Response(resp.content, resp.status_code, headers)
         return response
@@ -163,7 +169,7 @@ class IIIFInfo(Resource):
         Access information about images of rendered archived web pages via the <a href="https://iiif.io/api/">IIIF</a> <a href="https://iiif.io/api/image/2.1/#image-information-request-uri-syntax">Image API 2.1</a>.
         """
  
-        app.logger.info("IIIF PWID: %s" % pwid)
+        logger.info("IIIF PWID: %s" % pwid)
 
         # Re-encode the PWID for passing on:
         pwid_encoded = quote(pwid, safe='')
@@ -175,7 +181,7 @@ class IIIFInfo(Resource):
             headers={key: value for (key, value) in request.headers if key != 'Host'}
             )
 
-        headers = [(name, value) for (name, value) in resp.raw.headers.items()]
+        headers = [(name, value) for (name, value) in resp.headers.items()]
 
         response = Response(resp.content, resp.status_code, headers)
         return response
@@ -188,12 +194,11 @@ class IIIFInfo(Resource):
 # ------------------------------
 # ------------------------------
 
-#@app.route('/render_raw', methods=['HEAD', 'GET'], merge_slashes=False)
-def render_raw(
-    pwid=None,
-    url=None,
-    target_date = None,
-    type ='screenshot',
+@router.get('/render_raw')
+async def render_raw(
+    pwid: str,
+    target_date: Optional[str] = None,
+    type = 'screenshot',
     source = 'archive',
 ):
     """
@@ -213,44 +218,39 @@ def render_raw(
 
     """
 
-    # Must have url or pwid:
-    if not url and not pwid:
-        abort(400, description='Must specify URL or PWID')
+    # Must have a pwid:
+    if not pwid:
+        raise HTTPException(status_code=400, detail='Must specify a PWID')
 
-    if pwid:
-        archive, target_date, scope, url = parse_pwid(pwid)
+    archive, target_date, scope, url = parse_pwid(pwid)
 
-        # Not all archives...
-        if archive != 'webarchive.org.uk':
-            abort(400, description=f'Only webarchive.org.uk PWIDs are supported.')
+    # Not all archives...
+    if archive != 'webarchive.org.uk':
+        raise HTTPException(status_code=400, detail=f'Only webarchive.org.uk PWIDs are supported.')
 
-        # Not all scopes...
-        if scope != 'page':
-            abort(400, description=f'Only page PWIDs are supported.')
+    # Not all scopes...
+    if scope != 'page':
+        raise HTTPException(status_code=400, detail=f'Only page scope PWIDs are supported.')
 
-        # Convert https to http as the screenshotter doesn't like it with pywb it seems:
-        if url.startswith('https:'):
-            url = url.replace('https', 'http', 1)
+    # Convert https to http as the screenshotter doesn't like it with pywb it seems:
+    if url.startswith('https:'):
+        url = url.replace('https', 'http', 1)
 
     # Check with a Wayback service to see if this URL is allowed:
     if not can_access(url):
         # ABORT actually handled in can_access
-        abort(451)
+        raise HTTPException(status_code=452, detail='This PWID is not available for legal reasons.')
 
     # Rebuild the PWID:
     pwid = gen_pwid(target_date, url)
-    app.logger.info("Got PWID: %s" % pwid)
-
-    # Request is okay in principle, so return 200 if this is a HEAD request:
-    if request.method == 'HEAD':
-        return jsonify(pwid=pwid, success=True)
+    logger.info("Generated PWID: %s" % pwid)
 
     # Use cached value if there is one, using pwid as key:
     result = screenshot_cache.get(pwid)
     if result is not None:
-        #app.logger.info("Found in cache: %s" % pwid)
-        return send_file(io.BytesIO(result['payload']), mimetype=result['content_type'])
-    
+        logger.info("Found in cache: %s" % pwid)
+        logger.info(result)
+        return StreamingResponse(io.BytesIO(result['payload']), media_type=result['content_type'])
 
     # For originals:
     if source == 'original':
@@ -260,20 +260,26 @@ def render_raw(
 
         # If not found, say so:
         if warc_filename is None:
-            abort(404)
+            raise HTTPException(status_code=404, detail='Not found')
 
         # Grab the payload from the WARC and return it.
         stream, content_type = get_rendered_original_stream(warc_filename,warc_offset, compressed_end_offset)
     else:
         # Get rendered version from internal API
-        r = requests.get(WEBRENDER_ARCHIVE_SERVER,
-                            params={ 'url': url, 'show_screenshot': True, 'target_date': target_date })
+        logger.info("Requesting screenshot...")
+        async with httpx.AsyncClient() as client:
+            r = await client.get(WEBRENDER_ARCHIVE_SERVER,
+                            params={ 'url': url, 'show_screenshot': True, 'target_date': target_date },
+                            timeout=TIMEOUT)
+        
         if r.status_code != 200:
-            abort(r.status_code, description=r.reason)
+            raise HTTPException(status_code=r.status_code, detail=r.reason_phrase)
+
+        logger.info("Renderer responded 200 OK!")
         stream = io.BytesIO(r.content)
         content_type = "image/png"
 
     # And return
     image_file = stream.read()
     screenshot_cache.set(pwid, {'payload': image_file, 'content_type': content_type}, timeout=60*60)
-    return send_file(io.BytesIO(image_file), mimetype=content_type)
+    return StreamingResponse(io.BytesIO(image_file), media_type=content_type)

@@ -4,6 +4,8 @@ import datetime
 import requests
 import xml.dom.minidom
 
+from fastapi import HTTPException
+
 from requests.utils import quote
 from collections import OrderedDict
 
@@ -38,13 +40,14 @@ def can_access(url):
     """
     qurl = "%s%s" %(WAYBACK_SERVER, url)
     logger.info("Checking access at %s" % qurl)
+    #with httpx.AsyncClient() as client: ???
     r = requests.get(qurl)
     if r.status_code < 200 or r.status_code >= 400:
         logger.warn("Got %i %s" % (r.status_code, r.reason) )
         if r.status_code != None:
-            abort(r.status_code)
+            raise HTTPException(status_code=r.status_code, detail=r.reason)
         else:
-            abort(500)
+            raise HTTPException(status_code=500)
 
     return True
 

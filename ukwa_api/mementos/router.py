@@ -3,6 +3,7 @@
 This file declares the routes for the Resources module.
 """
 import os
+import re
 import logging
 import requests
 from enum import Enum
@@ -174,4 +175,19 @@ async def get_warc(
                 else:
                     break
 
-        return StreamingResponse(iterfile(), media_type=content_type)
+        # Add a filename header for direct downloads:
+        slug = s = re.sub('[^0-9a-zA-Z]+', '-', url)
+        if 'application/warc' == content_type:
+            ext = 'warc'
+        else:
+            ext = 'arc'
+        headers = {
+            'Content-Disposition': f'attachment; filename="{timestamp}_{slug}.{ext}"'
+        }
+
+        # Return the WARC stream:
+        return StreamingResponse(
+            iterfile(), 
+            media_type=content_type,
+            headers=headers,
+        )
