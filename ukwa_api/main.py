@@ -23,21 +23,21 @@ tags_metadata = [
             "url": "https://www.webarchive.org.uk/wayback/archive/",
         },
     },
-    {
-        "name": "Nominations",
-        "description": "Nominating URLs to be archived.",
-        "externalDocs": {
-            "description": "Corresponding User Interface",
-            "url": "https://www.webarchive.org.uk/ukwa/nominate/",
-        },
-    },
+#    {
+#        "name": "Nominations",
+#        "description": "Nominating URLs to be archived.",
+#        "externalDocs": {
+#            "description": "Corresponding User Interface",
+#            "url": "https://www.webarchive.org.uk/ukwa/nominate/",
+#        },
+#    },
     {
         "name": "IIIF Image API",
         "description": "IIIF Image API for accessing screenshots of archived web pages.",
     },
-    {
-        "name": "Internal",
-    },
+#    {
+#        "name": "Internal",
+#    },
 ]
 
 app = FastAPI(
