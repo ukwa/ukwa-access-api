@@ -47,7 +47,7 @@ app = FastAPI(
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Add Prometheus integration:
-instrumentator = Instrumentator().instrument(app).expose(app, tags=['Internal'])
+instrumentator = Instrumentator().instrument(app).expose(app, tags=['Internal'], include_in_schema=False)
 
 #
 # Add Logo.
@@ -103,11 +103,15 @@ app.include_router(
     iiif.router,
     tags=["IIIF Image API"],
 )
-app.include_router(
-    nominations.router,
-    tags=["Nominations"],
-    dependencies=[Depends(get_db)],
-)
+
+#
+# This needs a bit more work before going live, so commenting out for now...
+#
+#app.include_router(
+#    nominations.router,
+#    tags=["Nominations"],
+#    dependencies=[Depends(get_db)],
+#)
 
 # Just an endpoint for checking the service is up:
 @app.get("/ping", include_in_schema=False)

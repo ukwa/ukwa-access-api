@@ -194,7 +194,7 @@ class IIIFInfo(Resource):
 # ------------------------------
 # ------------------------------
 
-@router.get('/render_raw')
+@router.get('/render_raw', include_in_schema=False)
 async def render_raw(
     pwid: str,
     target_date: Optional[str] = None,

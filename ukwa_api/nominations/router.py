@@ -27,8 +27,10 @@ from . import crud, models, schemas
 from .rss import ResponseFormat, nominations_to_rss
 from ..dependencies import get_db, engine
 
+# This sets up the DB and schema as needed:
 models.Base.metadata.create_all(bind=engine)
 
+# Our router for this section:
 router = APIRouter(
     prefix="/nominations"
 )
