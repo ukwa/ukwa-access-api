@@ -18,7 +18,7 @@ from cachelib import FileSystemCache
 import httpx
 
 #from ..cdx import lookup_in_cdx, list_from_cdx, can_access, CDX_SERVER, get_warc_stream
-from ..mementos.router import path_ts, path_url
+from ..mementos.schemas import path_ts, path_url
 from ..cdx import can_access
 from ..pwid import gen_pwid, parse_pwid
 
@@ -50,8 +50,8 @@ IIIF_SERVER= os.environ.get("IIIF_SERVER", "http://iiif:8182")
 #
 #
 
-@router.get("/screenshot/{timestamp}/{url:path}",
-    summary="Get Screenshot URL",
+@router.get("/helper/{timestamp}/{url:path}",
+    summary="Generate an IIIF Screenshot URL",
     response_class=RedirectResponse,
     description="""
 Redirect to a suitable IIIF URL using a PWID with the given timestamp and URL properly encoded. 
@@ -71,46 +71,7 @@ async def resolve_url(
 #
 #
 
-@router.get("/2/{pwid}/{region}/{size}/{rotation}/{quality}.{format}",
-    summary="Get Image",
-    #response_class=,
-    description="""
-    """
-)
-async def iiif_renderer(
-    pwid, region, size, rotation, quality, format, request: Request
-):
-    logger.info(f"iiif_renderer pwid={pwid}")
-
-    # Re-encode the PWID for passing on (no-op on base64 encoded ones):
-    #pwid_encoded = quote(pwid, safe='')
-
-    logger.info(request.headers)
-
-    proxies = {
-        "http://": None,
-        "https://": None,
-    }
-
-    # Proxy requests to IIIF server:
-    iiif_url = f"{IIIF_SERVER}/iiif/2/{pwid}/{region}/{size}/{rotation}/{quality}.{format}"
-    logger.info(f"Getting iiif_url {iiif_url}")
-    async with httpx.AsyncClient(proxies=proxies) as client:
-        r = await client.get(
-            url=iiif_url,
-            headers={key: value for (key, value) in request.headers.items() if key != 'Host'},
-            timeout=TIMEOUT,
-            )
-    # Grab the headers:
-    headers = [(name, value) for (name, value) in r.headers.items()]
-
-    # Just pass the response back:
-    response = Response(content=r.content, status_code=r.status_code, headers=r.headers)
-    return response
-
-
 '''
-
 nsr = api.namespace('IIIF', path="/iiif", description='Access screenshots of archived websites via the <a href="https://iiif.io/api/">IIIF</a> <a href="https://iiif.io/api/image/2.1/">Image API 2.1</a>')
 @nsr.route('/2/<path:pwid>/<string:region>/<string:size>/<int:rotation>/<string:quality>.<string:format>', merge_slashes=False)
 @nsr.param('format', 'IIIF image request <a href="https://iiif.io/api/image/2.1/#format">format</a>.', required=True, default='png', enum=['png','jpg'])
@@ -149,6 +110,50 @@ class IIIFRenderer(Resource):
         response = Response(resp.content, resp.status_code, headers)
         return response
 
+'''
+
+
+@router.get("/2/{pwid}/{region}/{size}/{rotation}/{quality}.{format}",
+    summary="Get Image",
+    #response_class=,
+    description="""
+    """
+)
+async def iiif_renderer(
+    pwid, region, size, rotation, quality, format, request: Request
+):
+    logger.info(f"iiif_renderer pwid={pwid}")
+
+    # Re-encode the PWID for passing on (no-op on base64 encoded ones):
+    #pwid_encoded = quote(pwid, safe='')
+
+    logger.debug(request.headers)
+
+    proxies = {
+        "http://": None,
+        "https://": None,
+    }
+
+    # Proxy requests to IIIF server:
+    iiif_url = f"{IIIF_SERVER}/iiif/2/{pwid}/{region}/{size}/{rotation}/{quality}.{format}"
+    logger.info(f"Getting iiif_url {iiif_url}")
+    async with httpx.AsyncClient(proxies=proxies) as client:
+        r = await client.get(
+            url=iiif_url,
+            headers={key: value for (key, value) in request.headers.items() if key != 'Host'},
+            timeout=TIMEOUT,
+            )
+    # Grab the headers:
+    headers = [(name, value) for (name, value) in r.headers.items()]
+
+    # Just pass the response back:
+    response = Response(content=r.content, status_code=r.status_code, headers=r.headers)
+    return response
+
+
+
+
+'''
 @nsr.route('/2/<path:pwid>/info.json', merge_slashes=False)
 @nsr.param('pwid', 'A <a href="https://tools.ietf.org/html/draft-pwid-urn-specification-09">Persistent Web IDentifier (PWID) URN</a>. The identifier should be URL-encoded (or Base64 encoded) UTF-8 text. <br/>For example, the pwid <br/>`urn:pwid:webarchive.org.uk:1995-04-18T15:56:00Z:page:http://portico.bl.uk/`<br/> must be encoded as: <br/><tt>urn%3Apwid%3Awebarchive.org.uk%3A1995-04-18T15%3A56%3A00Z%3Apage%3Ahttp%3A%2F%2Fportico.bl.uk%2F</tt><br/> or in Base64 as: <br>`dXJuOnB3aWQ6d2ViYXJjaGl2ZS5vcmcudWs6MTk5NS0wNC0xOFQxNTo1NjowMFo6cGFnZTpodHRwOi8vcG9ydGljby5ibC51ay8=`',
     example='urn%3Apwid%3Awebarchive.org.uk%3A1995-04-18T15%3A56%3A00Z%3Apage%3Ahttp%3A%2F%2Fportico.bl.uk%2F',
@@ -187,6 +192,7 @@ class IIIFInfo(Resource):
         return response
 
 '''
+
 
 # ------------------------------
 # ------------------------------

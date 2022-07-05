@@ -9,7 +9,7 @@ import requests
 from enum import Enum
 from typing import List, Optional
 
-from fastapi import Depends, FastAPI, HTTPException, APIRouter, status, Request, Response, Query, Path
+from fastapi import Depends, FastAPI, HTTPException, APIRouter, status, Request, Response, Query
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import RedirectResponse, JSONResponse, PlainTextResponse, StreamingResponse
 
@@ -27,6 +27,10 @@ from ..analysis import load_fc_analysis
 from ..cdx import lookup_in_cdx, list_from_cdx, can_access, CDX_SERVER, get_warc_stream
 #from ..screenshots import get_rendered_original_stream, full_and_thumb_jpegs
 #from ..crawl_kafka import KafkaLauncher
+from ..pwid import gen_pwid
+
+# Import any routers required for cross-links:
+from ..iiif import router as iiif
 
 #models.Base.metadata.create_all(bind=engine)
 
@@ -94,23 +98,6 @@ async def lookup_url(
     return StreamingResponse(r.iter_content(chunk_size=10*1024),
                 media_type=r.headers['Content-Type'])
 
-#
-#
-#
-
-path_ts = Path(
-        ...,
-        title='The 14-digit timestamp to use as a target. Will go to the most closest matching archived snapshot.',
-        example='19950630120000',
-    )
-
-path_url = Path(
-        ...,
-        title="URL to resolve.",
-        description="...",
-        example='http://portico.bl.uk/',
-    )
-
 
 #
 #
@@ -126,8 +113,8 @@ Currently redirects to the open access part of the UK Web Archive only.
     """
 )
 async def resolve_url(
-    timestamp: str = path_ts,
-    url: AnyHttpUrl = path_url,
+    timestamp: str = schemas.path_ts,
+    url: AnyHttpUrl = schemas.path_url,
 ):
     return RedirectResponse('/wayback/archive/%s/%s' % (timestamp, url))
 
@@ -143,8 +130,8 @@ Look up a URL and timestamp and get the corresponding raw WARC record.
     """
 )
 async def get_warc(
-    timestamp: str = path_ts,
-    url: AnyHttpUrl = path_url,
+    timestamp: str = schemas.path_ts,
+    url: AnyHttpUrl = schemas.path_url,
 ):
 #    @ns.produces(['application/warc'])
 #    @ns.response(200, 'The corresponding WARC record.')
@@ -191,3 +178,21 @@ async def get_warc(
             media_type=content_type,
             headers=headers,
         )
+
+
+@router.get("/screenshot/{timestamp}/{url:path}",
+    summary="Generate an IIIF Screenshot URL",
+    response_class=RedirectResponse,
+    description="""
+Redirect to a suitable IIIF URL using a PWID with the given timestamp and URL properly encoded. 
+    """
+)
+async def resolve_url(
+    timestamp: str = schemas.path_ts,
+    url: AnyHttpUrl = schemas.path_url,
+):
+    pwid = gen_pwid(timestamp, url)
+    iiif_url = iiif.router.url_path_for('iiif_renderer', pwid=pwid, region='0,0,1024,1024', size='600,', rotation=0, quality='default', format='png')
+    logger.info(f"About to return {iiif_url}")
+    return RedirectResponse(iiif_url)
+
