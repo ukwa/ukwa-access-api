@@ -29,9 +29,6 @@ from ..cdx import lookup_in_cdx, list_from_cdx, can_access, CDX_SERVER, get_warc
 #from ..crawl_kafka import KafkaLauncher
 from ..pwid import gen_pwid
 
-# Import any routers required for cross-links:
-from .. import main
-
 #models.Base.metadata.create_all(bind=engine)
 
 # Create a logger, beneath the Uvicorn error logger:
@@ -188,11 +185,12 @@ Redirect to a suitable IIIF URL using a PWID with the given timestamp and URL pr
     """
 )
 async def resolve_url(
+    request: Request,
     timestamp: str = schemas.path_ts,
     url: AnyHttpUrl = schemas.path_url,
 ):
     pwid = gen_pwid(timestamp, url)
-    iiif_url = main.app.url_path_for('iiif_renderer', pwid=pwid, region='0,0,1024,1024', size='600,', rotation=0, quality='default', format='png')
+    iiif_url = request.url_for('iiif_renderer', pwid=pwid, region='0,0,1024,1024', size='600,', rotation=0, quality='default', format='png')
     logger.info(f"About to return {iiif_url}")
     return RedirectResponse(iiif_url)
 
