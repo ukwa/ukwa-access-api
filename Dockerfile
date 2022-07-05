@@ -13,9 +13,12 @@ ARG API_VERSION=dev
 ENV API_VERSION=$API_VERSION
 
 # Override this to mount the service at a prefix, e.g. /api/v1/
-ENV ROOT_PATH="/"
+ENV ROOT_PATH="/api"
+
+# Override the worker count:
+ENV WORKERS=2
 
 # Run command with sh so env vars are substituted:
-CMD ["sh", "-c", "uvicorn ukwa_api.main:app --host 0.0.0.0 --port 8000 --root-path ${ROOT_PATH} --workers 2"]
+CMD ["sh", "-c", "uvicorn ukwa_api.main:app --host 0.0.0.0 --port 8000 --root-path ${ROOT_PATH} --workers ${WORKERS}"]
 
 

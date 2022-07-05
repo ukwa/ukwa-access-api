@@ -13,6 +13,7 @@ from .mementos import router as mementos
 from .iiif import router as iiif
 
 API_VERSION = os.environ.get('API_VERSION', '0.0.0-dev')
+ROOT_PATH = os.environ.get('ROOT_PATH', '/')
 
 tags_metadata = [
     {
@@ -67,6 +68,7 @@ def custom_openapi():
         },
         routes=app.routes,
         tags=tags_metadata,
+        servers=[{'url': ROOT_PATH}]
     )
     openapi_schema["info"]["x-logo"] = {
             "url": "./static/ukwa-2018-onwhite-close.svg",
