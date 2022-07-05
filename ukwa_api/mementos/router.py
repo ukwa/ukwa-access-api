@@ -30,7 +30,7 @@ from ..cdx import lookup_in_cdx, list_from_cdx, can_access, CDX_SERVER, get_warc
 from ..pwid import gen_pwid
 
 # Import any routers required for cross-links:
-from ..iiif import router as iiif
+from .. import main
 
 #models.Base.metadata.create_all(bind=engine)
 
@@ -192,7 +192,7 @@ async def resolve_url(
     url: AnyHttpUrl = schemas.path_url,
 ):
     pwid = gen_pwid(timestamp, url)
-    iiif_url = iiif.router.url_path_for('iiif_renderer', pwid=pwid, region='0,0,1024,1024', size='600,', rotation=0, quality='default', format='png')
+    iiif_url = main.app.url_path_for('iiif_renderer', pwid=pwid, region='0,0,1024,1024', size='600,', rotation=0, quality='default', format='png')
     logger.info(f"About to return {iiif_url}")
     return RedirectResponse(iiif_url)
 
