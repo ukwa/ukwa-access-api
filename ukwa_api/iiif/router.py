@@ -122,7 +122,7 @@ class IIIFRenderer(Resource):
 async def iiif_renderer(
     pwid, region, size, rotation, quality, format, request: Request
 ):
-    logger.info(f"iiif_renderer pwid={pwid}")
+    logger.info(f"iiif_renderer received pwid={pwid}")
 
     # Re-encode the PWID for passing on (no-op on base64 encoded ones):
     #pwid_encoded = quote(pwid, safe='')
@@ -255,7 +255,7 @@ async def render_raw(
     result = screenshot_cache.get(pwid)
     if result is not None:
         logger.info("Found in cache: %s" % pwid)
-        logger.info(result)
+        #logger.info(result)
         return StreamingResponse(io.BytesIO(result['payload']), media_type=result['content_type'])
 
     # For originals:
