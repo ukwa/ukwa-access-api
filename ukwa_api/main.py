@@ -68,7 +68,7 @@ def custom_openapi():
         },
         routes=app.routes,
         tags=tags_metadata,
-        servers=[{'url': ROOT_PATH}]
+#        servers=[{'url': ROOT_PATH}]
     )
     openapi_schema["info"]["x-logo"] = {
             "url": "./static/ukwa-2018-onwhite-close.svg",
