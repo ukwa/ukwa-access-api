@@ -68,7 +68,8 @@ def custom_openapi():
         },
         routes=app.routes,
         tags=tags_metadata,
-#        servers=[{'url': ROOT_PATH}]
+        # This appears to be required for the OpenAPI UI to know where to sent requests:
+        servers=[{'url': ROOT_PATH}]
     )
     openapi_schema["info"]["x-logo"] = {
             "url": "./static/ukwa-2018-onwhite-close.svg",
