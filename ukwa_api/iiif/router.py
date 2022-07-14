@@ -125,8 +125,10 @@ async def iiif_renderer(
 ):
     logger.debug(f"iiif_renderer received pwid={pwid}")
     (archive, target_date, scope, url) = parse_pwid(pwid)
-
     logger.debug(f"PWID: archive={archive}, timestamp={target_date}, scope={scope}, url={url}")
+
+    # Check with a Wayback service to see if this URL is allowed:
+    can_access(url)
 
     # IIIF SERVER, is always an internal service:
     proxies = {
@@ -274,9 +276,7 @@ async def render_raw(
         url = url.replace('https', 'http', 1)
 
     # Check with a Wayback service to see if this URL is allowed:
-    if not can_access(url):
-        # ABORT actually handled in can_access
-        raise HTTPException(status_code=452, detail='This PWID is not available for legal reasons.')
+    can_access(url)
 
     # Rebuild the PWID:
     pwid = gen_pwid(target_date, url)
