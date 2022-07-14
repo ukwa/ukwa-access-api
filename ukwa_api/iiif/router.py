@@ -47,6 +47,31 @@ WEBRENDER_ARCHIVE_SERVER = os.environ.get("WEBRENDER_ARCHIVE_SERVER", "http://we
 # Get the location of the IIIF server:
 IIIF_SERVER= os.environ.get("IIIF_SERVER", "http://iiif:8182")
 
+#
+#
+#
+
+async def proxy_call(iiif_url, request):
+    # Is always an internal service:
+    proxies = {
+        "http://": None,
+        "https://": None,
+    }
+
+    # Proxy requests to IIIF server:
+    logger.info(f"Getting iiif_url {iiif_url}")
+    async with httpx.AsyncClient(proxies=proxies) as client:
+        r = await client.get(
+            url=iiif_url,
+            headers={key: value for (key, value) in request.headers.items() if key != 'Host'},
+            timeout=TIMEOUT,
+            )
+    # Grab the headers:
+    headers = [(name, value) for (name, value) in r.headers.items()]
+
+    # Just pass the response back:
+    response = Response(content=r.content, status_code=r.status_code, headers=r.headers)
+    return response
 
 #
 #
@@ -130,60 +155,49 @@ async def iiif_renderer(
     # Check with a Wayback service to see if this URL is allowed:
     can_access(url)
 
-    # IIIF SERVER, is always an internal service:
-    proxies = {
-        "http://": None,
-        "https://": None,
-    }
-
-    # Proxy requests to IIIF server:
+    # Make call to service:
     iiif_url = f"{IIIF_SERVER}/iiif/2/{pwid}/{region}/{size}/{rotation}/{quality}.{format}"
-    logger.info(f"Getting iiif_url {iiif_url}")
-    async with httpx.AsyncClient(proxies=proxies) as client:
-        r = await client.get(
-            url=iiif_url,
-            headers={key: value for (key, value) in request.headers.items() if key != 'Host'},
-            timeout=TIMEOUT,
-            )
-    # Grab the headers:
-    headers = [(name, value) for (name, value) in r.headers.items()]
-
-    # Just pass the response back:
-    response = Response(content=r.content, status_code=r.status_code, headers=r.headers)
-    return response
+    return await proxy_call(iiif_url, request)
 
 #
 # Additional helper to cope with PWIDs that contain slashes:
 #
 
 # Regex to match the correct format:
-iiif_ia_p = re.compile("(.*)/([^/]+)/([^/]+)/([^/]+)/([^/]+)\.([^/]+)")
+iiif_ia_p = re.compile("^(.*)/([^/]+)/([^/]+)/([^/]+)/([^/]+)\.([^/]+)$")
+iiif_iai_p = re.compile("^(.*)/info.json$")
 
 @router.get("/2/{raw_path:path}",
     summary="Cope with PWIDs that contain forward-slashes",
     #response_class=,
     include_in_schema=True,
 )
-async def iiif_renderer_fallback(
+async def iiif_image_api_fallback(
     raw_path: str, request: Request
 ):
     logger.debug(f"iiif_renderer_fallback received raw_path={raw_path}")
 
+    # Check if it's an /info.json URL
+    m = iiif_iai_p.match(raw_path)
+    if len(m.groups()) > 0:
+        # It matches, so pull in that response:
+        (archive, target_date, scope, url) = parse_pwid(m.group(1))
+        pwid = gen_pwid(target_date, url, encodeBase64=False)
+        return await iiif_info(pwid)
+
     # Strip off the /{region}/{size}/{rotation}/{quality}.{format} part off the end...
     m = iiif_ia_p.match(raw_path)
-    if len(m.groups()) == 0:
-        raise HTTPException(status_code=404, detail="Not Found")
+    if len(m.groups()) > 0:
+        # Interpret the first part as a raw PWID, etc.
+        (pwid, region, size, rotation, quality, format) = m.groups()
+        (archive, target_date, scope, url) = parse_pwid(pwid)
+        pwid = gen_pwid(target_date, url, encodeBase64=False)
 
-    # Interpret the first part as a raw PWID, etc.
-    (pwid, region, size, rotation, quality, format) = m.groups()
-    (archive, target_date, scope, url) = parse_pwid(pwid)
-    pwid = gen_pwid(target_date, url)
+        # Redirect to the encoded form? Or return it now it's reformatted correctly?
+        return await iiif_renderer(pwid, region, size, rotation, quality, format, request)
 
-    # Redirect to the encoded form? Or return it now it's reformatted correctly?
-    return await iiif_renderer(pwid, region, size, rotation, quality, format, request)
-
-
-
+    # None of these matched, so raise a 404:
+    raise HTTPException(status_code=404, detail="Not Found")
 
 
 '''
@@ -226,6 +240,25 @@ class IIIFInfo(Resource):
 
 '''
 
+@router.get("/2/{pwid}/info.json",
+    summary="Get Image Information",
+    #response_class=,
+    description="""
+    """
+)
+async def iiif_info(
+    pwid, request: Request
+):
+    logger.debug(f"iiif_info received pwid={pwid}")
+    (archive, target_date, scope, url) = parse_pwid(pwid)
+    logger.debug(f"PWID: archive={archive}, timestamp={target_date}, scope={scope}, url={url}")
+
+    # Check with a Wayback service to see if this URL is allowed:
+    ##can_access(url)
+
+    # Make call to service:
+    iiif_url = f"{IIIF_SERVER}/iiif/2/{pwid}/image.json"
+    return await proxy_call(iiif_url, request)
 
 # ------------------------------
 # ------------------------------
