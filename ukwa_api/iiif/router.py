@@ -159,46 +159,6 @@ async def iiif_renderer(
     iiif_url = f"{IIIF_SERVER}/iiif/2/{pwid}/{region}/{size}/{rotation}/{quality}.{format}"
     return await proxy_call(iiif_url, request)
 
-#
-# Additional helper to cope with PWIDs that contain slashes:
-#
-
-# Regex to match the correct format:
-iiif_ia_p = re.compile("^(.*)/([^/]+)/([^/]+)/([^/]+)/([^/]+)\.([^/]+)$")
-iiif_iai_p = re.compile("^(.*)/info.json$")
-
-@router.get("/2/{raw_path:path}",
-    summary="Cope with PWIDs that contain forward-slashes",
-    #response_class=,
-    include_in_schema=True,
-)
-async def iiif_image_api_fallback(
-    raw_path: str, request: Request
-):
-    logger.debug(f"iiif_renderer_fallback received raw_path={raw_path}")
-
-    # Check if it's an /info.json URL
-    m = iiif_iai_p.match(raw_path)
-    if m:
-        # It matches, so pull in that response:
-        (archive, target_date, scope, url) = parse_pwid(m.group(1))
-        pwid = gen_pwid(target_date, url, encodeBase64=False)
-        return await iiif_info(pwid)
-
-    # Strip off the /{region}/{size}/{rotation}/{quality}.{format} part off the end...
-    m = iiif_ia_p.match(raw_path)
-    if m:
-        # Interpret the first part as a raw PWID, etc.
-        (pwid, region, size, rotation, quality, format) = m.groups()
-        (archive, target_date, scope, url) = parse_pwid(pwid)
-        pwid = gen_pwid(target_date, url, encodeBase64=False)
-
-        # Redirect to the encoded form? Or return it now it's reformatted correctly?
-        return await iiif_renderer(pwid, region, size, rotation, quality, format, request)
-
-    # None of these matched, so raise a 404:
-    raise HTTPException(status_code=404, detail="Not Found")
-
 
 '''
 @nsr.route('/2/<path:pwid>/info.json', merge_slashes=False)
@@ -265,6 +225,51 @@ async def iiif_info(
 # Additional Routes (non-API)
 # ------------------------------
 # ------------------------------
+
+#
+# Additional helper to cope with PWIDs that contain slashes:
+#
+
+# Regex to match the correct format:
+iiif_ia_p = re.compile("^(.*)/([^/]+)/([^/]+)/([^/]+)/([^/]+)\.([^/]+)$")
+iiif_iai_p = re.compile("^(.*)/info.json$")
+
+@router.get("/2/{raw_path:path}",
+    summary="Cope with PWIDs that contain forward-slashes",
+    #response_class=,
+    include_in_schema=False,
+)
+async def iiif_image_api_fallback(
+    raw_path: str, request: Request
+):
+    logger.debug(f"iiif_renderer_fallback received raw_path={raw_path}")
+
+    # Check if it's an /info.json URL
+    m = iiif_iai_p.match(raw_path)
+    if m:
+        # It matches, so pull in that response:
+        (archive, target_date, scope, url) = parse_pwid(m.group(1))
+        pwid = gen_pwid(target_date, url, encodeBase64=False)
+        return await iiif_info(pwid, request)
+
+    # Strip off the /{region}/{size}/{rotation}/{quality}.{format} part off the end...
+    m = iiif_ia_p.match(raw_path)
+    if m:
+        # Interpret the first part as a raw PWID, etc.
+        (pwid, region, size, rotation, quality, format) = m.groups()
+        (archive, target_date, scope, url) = parse_pwid(pwid)
+        pwid = gen_pwid(target_date, url, encodeBase64=False)
+
+        # Redirect to the encoded form? Or return it now it's reformatted correctly?
+        return await iiif_renderer(pwid, region, size, rotation, quality, format, request)
+
+    # None of these matched, so raise a 404:
+    raise HTTPException(status_code=404, detail="Not Found")
+
+
+#
+# Raw site renderer to be called by the IIIF server:
+#
 
 @router.get('/render_raw', include_in_schema=False)
 async def render_raw(
