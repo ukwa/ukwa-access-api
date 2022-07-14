@@ -179,7 +179,7 @@ async def iiif_image_api_fallback(
 
     # Check if it's an /info.json URL
     m = iiif_iai_p.match(raw_path)
-    if len(m.groups()) > 0:
+    if m:
         # It matches, so pull in that response:
         (archive, target_date, scope, url) = parse_pwid(m.group(1))
         pwid = gen_pwid(target_date, url, encodeBase64=False)
@@ -187,7 +187,7 @@ async def iiif_image_api_fallback(
 
     # Strip off the /{region}/{size}/{rotation}/{quality}.{format} part off the end...
     m = iiif_ia_p.match(raw_path)
-    if len(m.groups()) > 0:
+    if m:
         # Interpret the first part as a raw PWID, etc.
         (pwid, region, size, rotation, quality, format) = m.groups()
         (archive, target_date, scope, url) = parse_pwid(pwid)
