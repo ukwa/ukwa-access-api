@@ -217,7 +217,7 @@ async def iiif_info(
     logger.debug(f"PWID: archive={archive}, timestamp={target_date}, scope={scope}, url={url}")
 
     # Check with a Wayback service to see if this URL is allowed:
-    #can_access(url)
+    can_access(url)
 
     # Escape any forward-slashes in the PWID:
     pwid = pwid.replace('/', '%2F')
