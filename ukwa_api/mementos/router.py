@@ -7,7 +7,7 @@ import re
 import logging
 import requests
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from fastapi import Depends, FastAPI, HTTPException, APIRouter, status, Request, Response, Query
 from fastapi.encoders import jsonable_encoder
@@ -78,12 +78,17 @@ async def lookup_url(
         schemas.LookupSort.default,
         title='Order to return results.'
     ),
+    limit: Union[int, None] = Query(
+        None, 
+        title='Number of matching records to return.'
+    ),
 ):
     # Only put through allowed parameters:
     params = {
         'url': url,
         'matchType': matchType.value,
-        'sort': sort.value
+        'sort': sort.value,
+        'limit': limit,
     }
     # Open a streaming call to cdx.api.wa.bl.uk/data-heritrix and stream the results back...
     r = requests.request(

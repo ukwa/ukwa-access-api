@@ -68,7 +68,7 @@ def custom_openapi():
         },
         routes=app.routes,
         tags=tags_metadata,
-        # This appears to be required for the OpenAPI UI to know where to sent requests:
+        # This appears to be required for the OpenAPI UI to know where to send requests:
         servers=[{'url': ROOT_PATH}]
     )
     openapi_schema["info"]["x-logo"] = {
