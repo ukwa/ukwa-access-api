@@ -155,6 +155,9 @@ async def iiif_renderer(
     # Check with a Wayback service to see if this URL is allowed:
     can_access(url)
 
+    # Escape any forward-slashes in the PWID:
+    pwid = pwid.replace('/', '%2F')
+
     # Make call to service:
     iiif_url = f"{IIIF_SERVER}/iiif/2/{pwid}/{region}/{size}/{rotation}/{quality}.{format}"
     return await proxy_call(iiif_url, request)
@@ -214,7 +217,10 @@ async def iiif_info(
     logger.debug(f"PWID: archive={archive}, timestamp={target_date}, scope={scope}, url={url}")
 
     # Check with a Wayback service to see if this URL is allowed:
-    ##can_access(url)
+    #can_access(url)
+
+    # Escape any forward-slashes in the PWID:
+    pwid = pwid.replace('/', '%2F')
 
     # Make call to service:
     iiif_url = f"{IIIF_SERVER}/iiif/2/{pwid}/info.json"
