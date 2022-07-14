@@ -217,7 +217,7 @@ async def iiif_info(
     ##can_access(url)
 
     # Make call to service:
-    iiif_url = f"{IIIF_SERVER}/iiif/2/{pwid}/image.json"
+    iiif_url = f"{IIIF_SERVER}/iiif/2/{pwid}/info.json"
     return await proxy_call(iiif_url, request)
 
 # ------------------------------
