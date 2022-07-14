@@ -28,6 +28,9 @@ path_ts = Path(
         ...,
         title='The 14-digit timestamp to use as a target. Will go to the most closest matching archived snapshot.',
         example='19950630120000',
+        min_length=14,
+        max_length=14,
+        regex="^\d+$",
     )
 
 path_url = Path(
@@ -36,4 +39,3 @@ path_url = Path(
         description="...",
         example='http://portico.bl.uk/',
     )
-
