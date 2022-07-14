@@ -1,7 +1,11 @@
 import re
+import logging
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 from urllib.parse import quote_plus
 from requests.utils import quote
+
+# Setup logger:
+logger = logging.getLogger(f"uvicorn.error.{__name__}")
 
 # Helper to turn timestamp etc. into full PWID:
 def gen_pwid(wb14_timestamp, url, archive_id='webarchive.org.uk', scope='page', encodeBase64=True):
@@ -13,10 +17,9 @@ def gen_pwid(wb14_timestamp, url, archive_id='webarchive.org.uk', scope='page', 
     # Encode as appropriate:
     if encodeBase64:
         pwid_enc = urlsafe_b64encode(pwid.encode('utf-8')).decode('utf-8')
+        return pwid_enc
     else:
-        pwid_enc = quote_plus(pwid, safe='')
-
-    return pwid_enc
+        return pwid
 
 # Helper to parse out a PWID, optionally B64 encoded:
 def parse_pwid(pwid):
@@ -27,7 +30,7 @@ def parse_pwid(pwid):
             decodedbytes = urlsafe_b64decode(pwid)
             decoded = decodedbytes.decode("utf-8") 
         except Exception as e:
-            app.logger.exception("Failed to decode", e)
+            logger.exception("Failed to decode", e)
             decoded = ""
         # And check the result:
         if decoded.startswith('urn:pwid:'):
