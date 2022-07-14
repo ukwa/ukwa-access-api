@@ -3,7 +3,7 @@ from base64 import urlsafe_b64decode, urlsafe_b64encode
 from requests.utils import quote
 
 # Helper to turn timestamp etc. into full PWID:
-def gen_pwid(wb14_timestamp, url, archive_id='webarchive.org.uk', encodeBase64=True):
+def gen_pwid(wb14_timestamp, url, archive_id='webarchive.org.uk', scope='page', encodeBase64=True):
     #safe_url = quote(url, safe='')
     #print(safe_url)
     yy1,yy2,MM,dd,hh,mm,ss = re.findall('..', wb14_timestamp)

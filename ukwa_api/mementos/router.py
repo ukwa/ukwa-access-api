@@ -118,7 +118,7 @@ async def resolve_url(
     timestamp: str = schemas.path_ts,
     url: AnyHttpUrl = schemas.path_url,
 ):
-    return RedirectResponse('/wayback/archive/%s/%s' % (timestamp, url))
+    return RedirectResponse('/wayback/archive/%s/%s' % (timestamp, url), status_code=303)
 
 #
 #
@@ -197,5 +197,5 @@ async def resolve_url(
     pwid = gen_pwid(timestamp, url)
     iiif_url = request.url_for('iiif_renderer', pwid=pwid, region='0,0,1024,1024', size='600,', rotation=0, quality='default', format='png')
     logger.info(f"About to return {iiif_url}")
-    return RedirectResponse(iiif_url)
+    return RedirectResponse(iiif_url, status_code=303)
 

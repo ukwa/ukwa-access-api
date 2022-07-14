@@ -4,9 +4,11 @@ This file declares the routes for the IIIF module.
 """
 import os
 import io
+import re
 import logging
 from enum import Enum
 from typing import List, Optional
+from xml.etree.ElementInclude import include
 
 from fastapi import Depends, FastAPI, HTTPException, APIRouter, status, Request, Response, Query, Path
 from fastapi.encoders import jsonable_encoder
@@ -112,7 +114,6 @@ class IIIFRenderer(Resource):
 
 '''
 
-
 @router.get("/2/{pwid}/{region}/{size}/{rotation}/{quality}.{format}",
     summary="Get Image",
     #response_class=,
@@ -122,13 +123,12 @@ class IIIFRenderer(Resource):
 async def iiif_renderer(
     pwid, region, size, rotation, quality, format, request: Request
 ):
-    logger.info(f"iiif_renderer received pwid={pwid}")
+    logger.debug(f"iiif_renderer received pwid={pwid}")
+    (archive, target_date, scope, url) = parse_pwid(pwid)
 
-    # Re-encode the PWID for passing on (no-op on base64 encoded ones):
-    #pwid_encoded = quote(pwid, safe='')
+    logger.debug(f"PWID: archive={archive}, timestamp={target_date}, scope={scope}, url={url}")
 
-    logger.debug(request.headers)
-
+    # IIIF SERVER, is always an internal service:
     proxies = {
         "http://": None,
         "https://": None,
@@ -149,6 +149,37 @@ async def iiif_renderer(
     # Just pass the response back:
     response = Response(content=r.content, status_code=r.status_code, headers=r.headers)
     return response
+
+#
+# Additional helper to cope with PWIDs that contain slashes:
+#
+
+# Regex to match the correct format:
+iiif_ia_p = re.compile("(.*)/([^/]+)/([^/]+)/([^/]+)/([^/]+)\.([^/]+)")
+
+@router.get("/2/{raw_path:path}",
+    summary="Cope with PWIDs that contain forward-slashes",
+    #response_class=,
+    include_in_schema=True,
+)
+async def iiif_renderer_fallback(
+    raw_path: str, request: Request
+):
+    logger.debug(f"iiif_renderer_fallback received raw_path={raw_path}")
+
+    # Strip off the /{region}/{size}/{rotation}/{quality}.{format} part off the end...
+    m = iiif_ia_p.match(raw_path)
+    if len(m.groups()) == 0:
+        raise HTTPException(status_code=404, detail="Not Found")
+
+    # Interpret the first part as a raw PWID, etc.
+    (pwid, region, size, rotation, quality, format) = m.groups()
+    (archive, target_date, scope, url) = parse_pwid(pwid)
+    pwid = gen_pwid(target_date, url)
+
+    # Redirect to the encoded form? Or return it now it's reformatted correctly?
+    return await iiif_renderer(pwid, region, size, rotation, quality, format, request)
+
 
 
 
@@ -249,12 +280,12 @@ async def render_raw(
 
     # Rebuild the PWID:
     pwid = gen_pwid(target_date, url)
-    logger.info("Generated PWID: %s" % pwid)
+    logger.debug("Generated PWID: %s" % pwid)
 
     # Use cached value if there is one, using pwid as key:
     result = screenshot_cache.get(pwid)
     if result is not None:
-        logger.info("Found in cache: %s" % pwid)
+        logger.debug("Found in cache: %s" % pwid)
         #logger.info(result)
         return StreamingResponse(io.BytesIO(result['payload']), media_type=result['content_type'])
 
