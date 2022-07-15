@@ -78,6 +78,73 @@ async def proxy_call(iiif_url, request):
 #
 
 '''
+@nsr.route('/2/<path:pwid>/info.json', merge_slashes=False)
+@nsr.param('pwid', 'A <a href="https://tools.ietf.org/html/draft-pwid-urn-specification-09">Persistent Web IDentifier (PWID) URN</a>. The identifier should be URL-encoded (or Base64 encoded) UTF-8 text. <br/>For example, the pwid <br/>`urn:pwid:webarchive.org.uk:1995-04-18T15:56:00Z:page:http://portico.bl.uk/`<br/> must be encoded as: <br/><tt>urn%3Apwid%3Awebarchive.org.uk%3A1995-04-18T15%3A56%3A00Z%3Apage%3Ahttp%3A%2F%2Fportico.bl.uk%2F</tt><br/> or in Base64 as: <br>`dXJuOnB3aWQ6d2ViYXJjaGl2ZS5vcmcudWs6MTk5NS0wNC0xOFQxNTo1NjowMFo6cGFnZTpodHRwOi8vcG9ydGljby5ibC51ay8=`',
+    example='urn%3Apwid%3Awebarchive.org.uk%3A1995-04-18T15%3A56%3A00Z%3Apage%3Ahttp%3A%2F%2Fportico.bl.uk%2F',
+    required=True)
+class IIIFInfo(Resource):
+    @nsr.doc(id='iiif_2_info', vendor={
+        'x-codeSamples': [{
+            'lang': 'Shell',
+            'source': 'curl https://www.webarchive.org.uk/api/iiif/2/urn%3Apwid%3Awebarchive.org.uk%3A1995-04-18T15%3A56%3A00Z%3Apage%3Ahttp%3A%2F%2Fportico.bl.uk%2F/info.json'
+        }]
+    })
+    @nsr.produces(['application/json'])
+    @nsr.response(200, 'The info.json for this image')
+    def get(self, pwid):
+        """
+        IIIF info
+
+        Access information about images of rendered archived web pages via the <a href="https://iiif.io/api/">IIIF</a> <a href="https://iiif.io/api/image/2.1/#image-information-request-uri-syntax">Image API 2.1</a>.
+        """
+ 
+        logger.info("IIIF PWID: %s" % pwid)
+
+        # Re-encode the PWID for passing on:
+        pwid_encoded = quote(pwid, safe='')
+
+        # Proxy requests to IIIF server:
+        resp = requests.request(
+            method='GET',
+            url=f"{IIIF_SERVER}/iiif/2/{pwid_encoded}/info.json",
+            headers={key: value for (key, value) in request.headers if key != 'Host'}
+            )
+
+        headers = [(name, value) for (name, value) in resp.headers.items()]
+
+        response = Response(resp.content, resp.status_code, headers)
+        return response
+
+'''
+
+@router.get("/2/{pwid}/info.json",
+    summary="Get Image Information",
+    #response_class=,
+    description="""
+IIIF info
+
+Access information about images of rendered archived web pages via the <a href="https://iiif.io/api/">IIIF</a> <a href="https://iiif.io/api/image/2.1/#image-information-request-uri-syntax">Image API 2.1</a>.
+    """
+)
+async def iiif_info(
+    pwid, request: Request
+):
+    logger.debug(f"iiif_info received pwid={pwid}")
+    (archive, target_date, scope, url) = parse_pwid(pwid)
+    logger.debug(f"PWID: archive={archive}, timestamp={target_date}, scope={scope}, url={url}")
+
+    # Check with a Wayback service to see if this URL is allowed:
+    can_access(url)
+
+    # Escape any forward-slashes in the PWID:
+    pwid = pwid.replace('/', '%2F')
+
+    # Make call to service:
+    iiif_url = f"{IIIF_SERVER}/iiif/2/{pwid}/info.json"
+    return await proxy_call(iiif_url, request)
+
+
+'''
 nsr = api.namespace('IIIF', path="/iiif", description='Access screenshots of archived websites via the <a href="https://iiif.io/api/">IIIF</a> <a href="https://iiif.io/api/image/2.1/">Image API 2.1</a>')
 @nsr.route('/2/<path:pwid>/<string:region>/<string:size>/<int:rotation>/<string:quality>.<string:format>', merge_slashes=False)
 @nsr.param('format', 'IIIF image request <a href="https://iiif.io/api/image/2.1/#format">format</a>.', required=True, default='png', enum=['png','jpg'])
@@ -144,69 +211,6 @@ async def iiif_renderer(
     iiif_url = f"{IIIF_SERVER}/iiif/2/{pwid}/{region}/{size}/{rotation}/{quality}.{format}"
     return await proxy_call(iiif_url, request)
 
-
-'''
-@nsr.route('/2/<path:pwid>/info.json', merge_slashes=False)
-@nsr.param('pwid', 'A <a href="https://tools.ietf.org/html/draft-pwid-urn-specification-09">Persistent Web IDentifier (PWID) URN</a>. The identifier should be URL-encoded (or Base64 encoded) UTF-8 text. <br/>For example, the pwid <br/>`urn:pwid:webarchive.org.uk:1995-04-18T15:56:00Z:page:http://portico.bl.uk/`<br/> must be encoded as: <br/><tt>urn%3Apwid%3Awebarchive.org.uk%3A1995-04-18T15%3A56%3A00Z%3Apage%3Ahttp%3A%2F%2Fportico.bl.uk%2F</tt><br/> or in Base64 as: <br>`dXJuOnB3aWQ6d2ViYXJjaGl2ZS5vcmcudWs6MTk5NS0wNC0xOFQxNTo1NjowMFo6cGFnZTpodHRwOi8vcG9ydGljby5ibC51ay8=`',
-    example='urn%3Apwid%3Awebarchive.org.uk%3A1995-04-18T15%3A56%3A00Z%3Apage%3Ahttp%3A%2F%2Fportico.bl.uk%2F',
-    required=True)
-class IIIFInfo(Resource):
-    @nsr.doc(id='iiif_2_info', vendor={
-        'x-codeSamples': [{
-            'lang': 'Shell',
-            'source': 'curl https://www.webarchive.org.uk/api/iiif/2/urn%3Apwid%3Awebarchive.org.uk%3A1995-04-18T15%3A56%3A00Z%3Apage%3Ahttp%3A%2F%2Fportico.bl.uk%2F/info.json'
-        }]
-    })
-    @nsr.produces(['application/json'])
-    @nsr.response(200, 'The info.json for this image')
-    def get(self, pwid):
-        """
-        IIIF info
-
-        Access information about images of rendered archived web pages via the <a href="https://iiif.io/api/">IIIF</a> <a href="https://iiif.io/api/image/2.1/#image-information-request-uri-syntax">Image API 2.1</a>.
-        """
- 
-        logger.info("IIIF PWID: %s" % pwid)
-
-        # Re-encode the PWID for passing on:
-        pwid_encoded = quote(pwid, safe='')
-
-        # Proxy requests to IIIF server:
-        resp = requests.request(
-            method='GET',
-            url=f"{IIIF_SERVER}/iiif/2/{pwid_encoded}/info.json",
-            headers={key: value for (key, value) in request.headers if key != 'Host'}
-            )
-
-        headers = [(name, value) for (name, value) in resp.headers.items()]
-
-        response = Response(resp.content, resp.status_code, headers)
-        return response
-
-'''
-
-@router.get("/2/{pwid}/info.json",
-    summary="Get Image Information",
-    #response_class=,
-    description="""
-    """
-)
-async def iiif_info(
-    pwid, request: Request
-):
-    logger.debug(f"iiif_info received pwid={pwid}")
-    (archive, target_date, scope, url) = parse_pwid(pwid)
-    logger.debug(f"PWID: archive={archive}, timestamp={target_date}, scope={scope}, url={url}")
-
-    # Check with a Wayback service to see if this URL is allowed:
-    can_access(url)
-
-    # Escape any forward-slashes in the PWID:
-    pwid = pwid.replace('/', '%2F')
-
-    # Make call to service:
-    iiif_url = f"{IIIF_SERVER}/iiif/2/{pwid}/info.json"
-    return await proxy_call(iiif_url, request)
 
 # ------------------------------
 # ------------------------------
