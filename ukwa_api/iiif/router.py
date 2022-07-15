@@ -77,27 +77,6 @@ async def proxy_call(iiif_url, request):
 #
 #
 
-@router.get("/helper/{timestamp}/{url:path}",
-    summary="Generate an IIIF Screenshot URL",
-    response_class=RedirectResponse,
-    description="""
-Redirect to a suitable IIIF URL using a PWID with the given timestamp and URL properly encoded. 
-    """
-)
-async def resolve_url(
-    timestamp: str = path_ts,
-    url: AnyHttpUrl = path_url,
-):
-    pwid = gen_pwid(timestamp, url)
-    iiif_url = router.url_path_for('iiif_renderer', pwid=pwid, region='0,0,1024,1024', size='600,', rotation=0, quality='default', format='png')
-    logger.info(f"About to return {iiif_url}")
-    return RedirectResponse(iiif_url)
-
-
-#
-#
-#
-
 '''
 nsr = api.namespace('IIIF', path="/iiif", description='Access screenshots of archived websites via the <a href="https://iiif.io/api/">IIIF</a> <a href="https://iiif.io/api/image/2.1/">Image API 2.1</a>')
 @nsr.route('/2/<path:pwid>/<string:region>/<string:size>/<int:rotation>/<string:quality>.<string:format>', merge_slashes=False)
@@ -143,6 +122,9 @@ class IIIFRenderer(Resource):
     summary="Get Image",
     #response_class=,
     description="""
+IIIF images
+
+Access images of rendered archived web pages via the <a href="https://iiif.io/api/">IIIF</a> <a href="https://iiif.io/api/image/2.1/">Image API 2.1</a>.
     """
 )
 async def iiif_renderer(
