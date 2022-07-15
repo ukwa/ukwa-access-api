@@ -70,7 +70,8 @@ def custom_openapi():
         },
         routes=app.routes,
         tags=tags_metadata,
-        root_path=SCRIPT_NAME,
+        # This is required for the OpenAPI UI to know where to send requests (supersedes basePath):
+        servers=[{ 'url': SCRIPT_NAME }]
     )
     openapi_schema["info"]["x-logo"] = {
             "url": "./static/ukwa-2018-onwhite-close.svg",
