@@ -17,6 +17,8 @@ services:
       - "WEBHDFS_PREFIX=http://warc-server:8000/by-filename/"
       - "WEBRENDER_ARCHIVE_SERVER=http://webrender:8010/render"
       - "IIIF_SERVER=http://iiif:8182"
+      - "LOG_LEVEL=debug"
+      - "SCRIPT_NAME="
       # Live systems
       #- "CDX_SERVER=http://cdx.api.wa.bl.uk/data-heritrix"
       #- "WAYBACK_SERVER=http://192.168.45.25:8180/archive/"

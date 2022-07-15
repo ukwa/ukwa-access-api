@@ -4,6 +4,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.staticfiles import StaticFiles
+from starlette.config import Config
 
 from prometheus_fastapi_instrumentator import Instrumentator
 
@@ -12,8 +13,10 @@ from .nominations import router as nominations
 from .mementos import router as mementos
 from .iiif import router as iiif
 
+config = Config()
+
 API_VERSION = os.environ.get('API_VERSION', '0.0.0-dev')
-ROOT_PATH = os.environ.get('ROOT_PATH', '/')
+SCRIPT_NAME = config("SCRIPT_NAME", default="")
 
 tags_metadata = [
     {
@@ -43,7 +46,9 @@ tags_metadata = [
 
 app = FastAPI(
     dependencies=[Depends(get_db)],
-    title="UK Web Archive API"
+    title="UK Web Archive API",
+    root_path=SCRIPT_NAME,
+    #openapi_prefix=SCRIPT_NAME,
 )
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -68,8 +73,6 @@ def custom_openapi():
         },
         routes=app.routes,
         tags=tags_metadata,
-        # This appears to be required for the OpenAPI UI to know where to send requests:
-        servers=[{'url': ROOT_PATH}]
     )
     openapi_schema["info"]["x-logo"] = {
             "url": "./static/ukwa-2018-onwhite-close.svg",
