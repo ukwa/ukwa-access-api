@@ -46,9 +46,6 @@ tags_metadata = [
 
 app = FastAPI(
     dependencies=[Depends(get_db)],
-    title="UK Web Archive API",
-    root_path=SCRIPT_NAME,
-    #openapi_prefix=SCRIPT_NAME,
 )
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -73,6 +70,7 @@ def custom_openapi():
         },
         routes=app.routes,
         tags=tags_metadata,
+        root_path=SCRIPT_NAME,
     )
     openapi_schema["info"]["x-logo"] = {
             "url": "./static/ukwa-2018-onwhite-close.svg",
