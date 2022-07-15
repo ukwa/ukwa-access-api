@@ -46,7 +46,7 @@ tags_metadata = [
 
 app = FastAPI(
     dependencies=[Depends(get_db)],
-    title="UK Web Archive API",
+    title="Documentation for the UK Web Archive API",
 )
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -60,6 +60,7 @@ def custom_openapi():
     if app.openapi_schema:
         return app.openapi_schema
     openapi_schema = get_openapi(
+        title="UK Web Archive API",
         description="API services for the UK Web Archive. \n\n**This is an early-stage prototype and may be changed without notice.**",
         version=API_VERSION,
         terms_of_service="https://www.webarchive.org.uk/ukwa/info/terms_conditions",
