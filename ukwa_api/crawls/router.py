@@ -29,7 +29,7 @@ def load_fc_analysis():
 @router.get("/fc/recent-activity",
     summary="Recent crawl stats",
     description="""
-This returns a summary of recent crawling activity.
+This returns a summary of recent crawling activity from the 'fc' or 'frequent crawl'.
     """
 )
 async def get_recent_activity():
