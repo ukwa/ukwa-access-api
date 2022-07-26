@@ -16,13 +16,6 @@ router = APIRouter(
     prefix='/crawls'
 )
 
-# Get the crawler stats file:
-def load_fc_analysis():
-    with open(os.environ.get("ANALYSIS_SOURCE_FILE", "test/data/fc.crawled.json")) as f:
-        stats = json.load(f)
-    return stats
-
-
 #
 # Set up the router
 #
@@ -33,10 +26,8 @@ This returns a summary of recent crawling activity from the 'fc' or 'frequent cr
     """
 )
 async def get_recent_activity():
-        stats = load_fc_analysis()
-        try:
-            return stats
-        except Exception as e:
-            logger.exception("Could not jsonify stats: %s" % stats)
+    with open(os.environ.get("ANALYSIS_SOURCE_FILE", "test/data/fc.crawled.json")) as f:
+        stats = json.load(f)
+    return stats
 
 
