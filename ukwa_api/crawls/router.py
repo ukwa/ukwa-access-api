@@ -26,7 +26,7 @@ def load_fc_analysis():
 #
 # Set up the router
 #
-@router.get("/crawls/fc/recent-activity",
+@router.get("/fc/recent-activity",
     summary="Recent crawl stats",
     description="""
 This returns a summary of recent crawling activity.
