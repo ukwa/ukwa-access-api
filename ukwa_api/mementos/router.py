@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-This file declares the routes for the Resources module.
+This file declares the routes for the Mementos module.
 """
 import os
 import re
@@ -23,7 +23,6 @@ from . import schemas
 #from .rss import ResponseFormat, nominations_to_rss
 #from ..dependencies import get_db, engine
 
-from ..analysis import load_fc_analysis
 from ..cdx import lookup_in_cdx, list_from_cdx, can_access, CDX_SERVER, get_warc_stream
 #from ..screenshots import get_rendered_original_stream, full_and_thumb_jpegs
 #from ..crawl_kafka import KafkaLauncher

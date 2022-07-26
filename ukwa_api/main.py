@@ -12,6 +12,7 @@ from .dependencies import get_db
 from .nominations import router as nominations
 from .mementos import router as mementos
 from .iiif import router as iiif
+from .crawls import router as crawls
 
 config = Config()
 
@@ -35,6 +36,10 @@ tags_metadata = [
 #            "url": "https://www.webarchive.org.uk/ukwa/nominate/",
 #        },
 #    },
+    {
+        "name": "Crawls",
+        "description": "Web archive crawl processes and associated information.",
+    },
     {
         "name": "IIIF Image API",
         "description": "IIIF Image API for accessing screenshots of archived web pages.",
@@ -109,6 +114,10 @@ app.include_router(
 app.include_router(
     iiif.router,
     tags=["IIIF Image API"],
+)
+app.include_router(
+    crawls.router,
+    tags=["Crawls"],
 )
 
 #
