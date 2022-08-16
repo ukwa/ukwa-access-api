@@ -1,28 +1,17 @@
 UKWA Access API
 ===============
 
-This [Flask RESTx](https://flask-restx.readthedocs.io/en/latest/) application acts as a front-end for our access-time API services.
+This [FastAPI](https://fastapi.tiangolo.com/) application acts as a front-end for our access-time API services.
 
 APIs
 ----
 
 All APIs are documented using Swagger, and the system includes Swagger UI. e.g. when running in dev mode, you can go to:
 
-    http://localhost:5000/
+    http://localhost:8000/docs
 
-and you'll get a UI that describes the APIs. (This may not be directly visible in production, i.e. when running behind a proxy.)
+and you'll get a UI that describes the APIs.
 
-Currently, it provides the ARK and URL resolution services.
-
-### ARK Resolver
-
-This looks up ARKs in a simple text file. See [api-data/arks.txt](api-data/arks.txt) for an example.
-
-    <ARK> <TIMESTAMP> <URL>
-
-It just maps an ARK to a timestamp and URL, which is then passed to the Wayback Resolver.
-
-The file should be generated from W3ACT in a separate process, see python-shepherd for details.
 
 ### Wayback Resolver
 
@@ -41,6 +30,6 @@ Development & Deployment
 For development, you can run it (in a suitable `virtualenv`) using:
 
     $ pip install -f requirements.txt
-    $ python api.py
+    $ uvicorn ukwa_api.main:app --reload
 
-For testing/production, it's designed to run under Docker, using `gunicorn` as the runtime engine.
+For staging/beta/production, it's designed to run under Docker, using `uvicorn` as the runtime engine.

@@ -15,6 +15,10 @@ services:
       - "CDX_SERVER=http://cdxserver:8080/tc"
       - "WAYBACK_SERVER=http://pywb:8080/test/"
       - "WEBHDFS_PREFIX=http://warc-server:8000/by-filename/"
+      - "WEBRENDER_ARCHIVE_SERVER=http://webrender:8010/render"
+      - "IIIF_SERVER=http://iiif:8182"
+      - "LOG_LEVEL=debug"
+      - "SCRIPT_NAME="
       # Live systems
       #- "CDX_SERVER=http://cdx.api.wa.bl.uk/data-heritrix"
       #- "WAYBACK_SERVER=http://192.168.45.25:8180/archive/"
@@ -31,25 +35,23 @@ services:
 
   # Archived web page rendering service
   webrender:
-    image: ukwa/webrender-api:1.0.15
+    image: ukwa/webrender-puppeteer:2.2.1
+    #image: webrender-puppeteer_webrender:latest
     environment:
-      - "HTTP_PROXY=pywb:8080"
-      - "DOCKER_NETWORK=ukwa-access-api_default" # pywb network, to attach renderer containers to
+      - "HTTP_PROXY=http://pywb:8080"
       - "LC_ALL=en_US.utf8"
-      - "WEB_RENDER_TMP=/tmp/webrender" # Has to match the _host_ folder mounted below.
-      # DOCKER_HOST could be used to run rendering on a dedicated service.
+      - "PORT=8010"
+      - "NODE_ENV=production"
+      - "RUN_BEHAVIOURS=false"
     ports:
       - "18010:8010"
     depends_on:
       - pywb
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock # Needs to connect to Docker to launch render container
-      - /tmp/webrender:/tmp/webrender # Host mount must match internal mount at present!
 
   # OutbackCDX
   # Needs populating using script in integration testing folder.
   cdxserver:
-    image: nlagovau/outbackcdx:0.7.0
+    image: nlagovau/outbackcdx:0.11.0
     command: "java -jar outbackcdx.jar -d /cdx-data -p 8080 -b 0.0.0.0"
     ports:
       - "19090:8080"
@@ -58,14 +60,14 @@ services:
 
   # PyWB
   pywb:
-    image: webrecorder/pywb:2.4.2
+    image: webrecorder/pywb:2.6.6
     ports:
       - "18080:8080"
     volumes:
       - ./integration-testing/webarchive:/webarchive
 
   warc-server:
-    image: ukwa/warc-server
+    image: ukwa/warc-server:1.1.0
     #ports:
     #  - 18000:8000
     environment:
@@ -110,7 +112,7 @@ services:
     image: lyrasis/cantaloupe
     environment:
       SOURCE_STATIC: "HttpSource"
-      HTTPSOURCE_BASICLOOKUPSTRATEGY_URL_PREFIX: "http://api:8000/render_raw?pwid="
+      HTTPSOURCE_BASICLOOKUPSTRATEGY_URL_PREFIX: "http://api:8000/iiif/render_raw?pwid="
       HTTPSOURCE_BASICLOOKUPSTRATEGY_URL_SUFFIX: ""
       HTTPSOURCE_REQUEST_TIMEOUT: 3600
       PROCESSOR_STREAM_RETRIEVAL_STRATEGY: "CacheStrategy"

@@ -11,8 +11,8 @@ from urllib.parse import urlparse
 from kafka import KafkaProducer
 
 
-# Set logging for this module and keep the reference handy:
-logger = logging.getLogger(__name__)
+# Create a logger, beneath the Uvicorn error logger:
+logger = logging.getLogger(f"uvicorn.error.{__name__}")
 
 
 class KafkaLauncher(object):
