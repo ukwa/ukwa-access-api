@@ -28,6 +28,7 @@ from .rss import ResponseFormat, nominations_to_rss
 from ..dependencies import get_db, engine
 
 # This sets up the DB and schema as needed:
+# FIXME Note that this is not safe to use with multiple worker processes due to race conditions.
 models.Base.metadata.create_all(bind=engine)
 
 # Our router for this section:
