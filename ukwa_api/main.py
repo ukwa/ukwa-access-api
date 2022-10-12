@@ -13,6 +13,7 @@ from .nominations import router as nominations
 from .mementos import router as mementos
 from .iiif import router as iiif
 from .crawls import router as crawls
+from .collections import router as collections
 
 config = Config()
 
@@ -44,6 +45,10 @@ tags_metadata = [
         "name": "IIIF Image API",
         "description": "IIIF Image API for accessing screenshots of archived web pages.",
     },
+    {
+        "name": "Collections",
+        "description": "Web archive Target Collections.",
+    }
 #    {
 #        "name": "Internal",
 #    },
@@ -118,6 +123,10 @@ app.include_router(
 app.include_router(
     crawls.router,
     tags=["Crawls"],
+)
+app.include_router(
+    collections.router,
+    tags=["Collections"],
 )
 
 #
