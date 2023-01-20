@@ -12,11 +12,9 @@ class LookupMatchType(Enum):
     prefix = 'prefix'
     host = 'host'
     domain = 'domain'
-    range = 'range'
 
 class LookupSort(Enum):
     default = 'default'
-    closest = 'closest'
     reverse = 'reverse'
 
 

@@ -4,6 +4,7 @@ from pathlib import Path
 import os
 
 JSON_DIR = os.environ.get("JSON_DIR","test/data/collections/")
+JSON_DIR = JSON_DIR.rstrip("/") + "/"
 
 # Setup a router:
 router = APIRouter(

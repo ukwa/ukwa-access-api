@@ -71,15 +71,21 @@ async def lookup_url(
     ),
     matchType: Optional[schemas.LookupMatchType] = Query(
         schemas.LookupMatchType.exact,
-        title='Type of match to look for.'
-    ),
+        # description unfortunately dupes the "Available values" list but I couldn't find a way to suppress the latter.
+        description="""Type of match to look for.<br><br>
+                       exact       - return captures exactly matching input url<br>
+                       prefix      - return captures beginning input path<br>
+                       host        - return captures belonging to input host<br>
+                       domain      - as host, but also return captures belonging to subdomains<br>
+                    """
+       ),
     sort: Optional[schemas.LookupSort] = Query(
         schemas.LookupSort.default,
-        title='Order to return results.'
-    ),
+        description='Order to return results. Reverse order not recommended for large result sets.'    
+        ),
     limit: Union[int, None] = Query(
         None, 
-        title='Number of matching records to return.'
+        description='Number of matching records to return.'
     ),
 ):
     # Only put through allowed parameters:
