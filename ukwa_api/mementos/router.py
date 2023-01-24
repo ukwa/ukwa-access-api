@@ -66,7 +66,7 @@ async def lookup_url(
     url: AnyHttpUrl = Query(
         ...,
         title="URL to find.",
-        description="URL to look for (will canonicalize the URL before running the query).",
+        description="URL to look for (will [canonicalise](https://www.rfc-editor.org/rfc/rfc6596) the URL before running the query).",
         example='http://portico.bl.uk/'
     ),
     matchType: Optional[schemas.LookupMatchType] = Query(
@@ -191,7 +191,7 @@ async def get_warc(
     summary="Generate an IIIF Screenshot URL",
     response_class=RedirectResponse,
     description="""
-Redirect to a suitable IIIF URL using a PWID with the given timestamp and URL properly encoded. 
+Redirect to a suitable IIIF URL using a [PWID](https://www.iana.org/assignments/urn-formal/pwid) with the given timestamp and URL properly encoded. 
     """
 )
 async def resolve_url(
