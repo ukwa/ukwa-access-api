@@ -24,7 +24,7 @@ class LookupSort(Enum):
 
 path_ts = Path(
         ...,
-        title='The 14-digit timestamp to use as a target. Will go to the most closest matching archived snapshot.',
+        description='The 14-digit timestamp to use as a target. Will go to the closest matching archived snapshot. Format YYYYMMDDHHMMSS.',
         example='19950630120000',
         min_length=14,
         max_length=14,
@@ -33,7 +33,6 @@ path_ts = Path(
 
 path_url = Path(
         ...,
-        title="URL to resolve.",
-        description="...",
+        description="URL to resolve.",
         example='http://portico.bl.uk/',
     )

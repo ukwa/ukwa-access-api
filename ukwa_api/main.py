@@ -23,7 +23,7 @@ SCRIPT_NAME = config("SCRIPT_NAME", default="")
 tags_metadata = [
     {
         "name": "Archived URLs",
-        "description": "Find archived web resources (a.k.a. [Mementos](https://datatracker.ietf.org/doc/html/rfc7089#section-1.1)), by URL and date/time.",
+        "description": "Find archived web resources (a.k.a. [Mementos](https://datatracker.ietf.org/doc/html/rfc7089#section-1.1)), by URL and date/time (YYYYMMDDHHMMSS).",
         "externalDocs": {
             "description": "Corresponding User Interface",
             "url": "https://www.webarchive.org.uk/wayback/archive/",
