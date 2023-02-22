@@ -20,7 +20,7 @@ idna==3.3
 iiif-prezi==0.3.0
 importlib-metadata==4.11.3
 lxml==4.9.1
-Pillow==9.2.0
+Pillow==9.3.0
 prometheus-client==0.14.1
 prometheus-fastapi-instrumentator==5.7.1
 pydantic==1.9.0
