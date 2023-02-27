@@ -1,10 +1,17 @@
 FROM python:3.10
 
+# Update packages
+RUN apt-get update && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set up working folder:
 WORKDIR /usr/src/access
 
+# Install dependencies:
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Copy in app files:
 COPY . .
 
 # Somewhere to store multi-process metrics for Prometheus:
