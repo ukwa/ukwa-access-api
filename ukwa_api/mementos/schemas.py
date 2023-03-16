@@ -17,6 +17,12 @@ class LookupSort(Enum):
     default = 'default'
     reverse = 'reverse'
 
+class LookupOutputType(Enum):
+    default = 'default'
+    json = 'json'
+
+
+
 
 #
 #

@@ -87,6 +87,10 @@ async def lookup_url(
         None, 
         description='Number of matching records to return.'
     ),
+    outputType: Optional[schemas.LookupOutputType] = Query(
+        schemas.LookupOutputType.default,
+        description='Content type returned. CDX (default) or JSON.'    
+        ),
 ):
     # Only put through allowed parameters:
     params = {
@@ -94,6 +98,7 @@ async def lookup_url(
         'matchType': matchType.value,
         'sort': sort.value,
         'limit': limit,
+        'output': outputType.value
     }
     # Open a streaming call to cdx.api.wa.bl.uk/data-heritrix and stream the results back...
     r = requests.request(
