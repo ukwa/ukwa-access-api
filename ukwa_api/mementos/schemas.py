@@ -18,7 +18,7 @@ class LookupSort(Enum):
     reverse = 'reverse'
 
 class LookupOutputType(Enum):
-    default = 'default'
+    default = 'cdx'
     json = 'json'
 
 

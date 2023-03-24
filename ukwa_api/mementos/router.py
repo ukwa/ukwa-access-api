@@ -98,7 +98,7 @@ async def lookup_url(
         'matchType': matchType.value,
         'sort': sort.value,
         'limit': limit,
-        'output': outputType.value
+        'output': ("default" if outputType.value == "cdx" else outputType.value)
     }
     # Open a streaming call to cdx.api.wa.bl.uk/data-heritrix and stream the results back...
     r = requests.request(
