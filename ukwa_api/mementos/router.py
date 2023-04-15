@@ -90,16 +90,33 @@ async def lookup_url(
     outputType: Optional[schemas.LookupOutputType] = Query(
         schemas.LookupOutputType.default,
         description='Content type returned. CDX (default) or JSON.'    
-        ),
+    ),
+    closest: Optional[str] = Query(
+        None,
+        description="14-digit timestamp to aim for when sorting by closest (ignored otherwise). Format YYYYMMDDHHMMSS.",
+        regex=schemas.path_ts.regex,
+        min_length=schemas.path_ts.min_length,
+        max_length=schemas.path_ts.max_length,
+        example=schemas.path_ts.example
+    )
 ):
+
+    # Basic validation:
+    if sort.value == "closest" and not closest:
+        raise HTTPException(status_code=400, detail="Timestamp required for Closest sort.")
+
     # Only put through allowed parameters:
     params = {
         'url': url,
         'matchType': matchType.value,
         'sort': sort.value,
         'limit': limit,
-        'output': ("default" if outputType.value == "cdx" else outputType.value)
-    }
+        'output': ("default" if outputType.value == "cdx" else outputType.value),
+        'closest': closest if (closest and sort.value == "closest") else None
+        }
+    
+
+
     # Open a streaming call to cdx.api.wa.bl.uk/data-heritrix and stream the results back...
     r = requests.request(
         method='GET',

@@ -1,6 +1,5 @@
 from enum import Enum
 from typing import List, Optional, Any
-from datetime import datetime
 
 from pydantic import BaseModel, Field, AnyHttpUrl, EmailStr
 from pydantic.utils import GetterDict
@@ -16,17 +15,12 @@ class LookupMatchType(Enum):
 class LookupSort(Enum):
     default = 'default'
     reverse = 'reverse'
+    closest = 'closest'
 
 class LookupOutputType(Enum):
     default = 'cdx'
     json = 'json'
 
-
-
-
-#
-#
-#
 
 path_ts = Path(
         ...,
