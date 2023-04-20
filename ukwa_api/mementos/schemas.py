@@ -22,6 +22,22 @@ class LookupOutputType(Enum):
     json = 'json'
 
 
+class CollapseType(str, Enum):
+    default = ''
+    collapseToFirst = 'collapseToFirst'
+    collapseToLast = 'collapseToLast'
+
+class CollapseField(str, Enum):
+    default = ''
+    urlkey = 'urlkey'
+    timestamp = 'timestamp'
+    original = 'original'
+    mimetype = 'mimetype'
+    statuscode = 'statuscode'
+    digest = 'digest'
+    length = 'length'
+
+
 path_ts = Path(
         ...,
         description='The 14-digit timestamp to use as a target. Will go to the closest matching archived snapshot. Format YYYYMMDDHHMMSS.',

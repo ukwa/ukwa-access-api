@@ -115,12 +115,40 @@ async def lookup_url(
         regex=schemas.path_ts.regex,
         min_length=schemas.path_ts.min_length,
         max_length=schemas.path_ts.max_length
+    ),
+    collapse_type: Optional[schemas.CollapseType] = Query(
+        schemas.CollapseType.default,
+        description="Collapse to the first or last unique value of the specified field."
+    ),
+    collapse_field: Optional[schemas.CollapseField] = Query(
+        schemas.CollapseField.default,
+        description="Field to collapse on if collapse_type is specified."
+    ),
+    collapse_length: Optional[int] = Query(
+        None,
+        description="Length of the value to collapse on (eg. number of leading digits in timestamp) if collapse_field is specified."
     )
+
+
 ):
 
-    # Basic validation:
+    # Basic validation and derived parameters:
     if sort.value == "closest" and not closest:
         raise HTTPException(status_code=400, detail="Timestamp required for Closest sort.")
+    
+    collapse_param = None
+    if collapse_type in ["collapseToFirst", "collapseToLast"]:
+        if collapse_field:
+            if collapse_length:
+                collapse_param = f"{collapse_field.value}:{collapse_length}"
+            else:
+                collapse_param = collapse_field.value        
+        else:
+            raise HTTPException(status_code=400, detail="collapse_field must be specified if collapse is specified")
+    else:
+        if collapse_field or collapse_length:
+            raise HTTPException(status_code=400, detail="collapse_field and collapse_length can only be specified if collapse is specified")
+    
 
     # Only put through allowed parameters:
     params = {
@@ -132,9 +160,12 @@ async def lookup_url(
         'closest': closest if (closest and sort.value == "closest") else None,
         'from': from_date,
         'to': to_date
+        
         }
     
-
+    if collapse_param:
+        params[collapse_type] = collapse_param
+    
     # Open a streaming call to cdx.api.wa.bl.uk/data-heritrix and stream the results back...
     r = requests.request(
         method='GET',
@@ -142,6 +173,12 @@ async def lookup_url(
         params=params,
         stream=True
         )
+    
+    # log url
+    logger.info("actual request url: ")
+    logger.info(r.url)
+    
+
     return StreamingResponse(r.iter_content(chunk_size=10*1024),
                 media_type=r.headers['Content-Type'])
 
