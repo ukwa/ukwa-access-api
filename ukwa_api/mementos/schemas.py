@@ -17,8 +17,8 @@ class LookupSort(Enum):
     reverse = 'reverse'
     closest = 'closest'
 
-class LookupOutputType(Enum):
-    default = 'cdx'
+class LookupOutputType(str, Enum):
+    cdx = 'cdx'
     json = 'json'
 
 
@@ -52,3 +52,12 @@ path_url = Path(
         description="URL to resolve.",
         example='http://portico.bl.uk/',
     )
+
+path_range_ts = Path(
+    ...,
+    description='Format YYYY, YYYYMM, etc., up to YYYYMMDDHHMMSS.',
+    example='19950630120000',
+    min_length=4,  # Allow for partial matches
+    max_length=14,
+    regex="^\d{4,14}$",  # Allow 4-14 digits
+)

@@ -88,13 +88,17 @@ async def lookup_url(
         None, 
         description='Number of matching records to return.'
     ),
-    outputType: Optional[schemas.LookupOutputType] = Query(
-        schemas.LookupOutputType.default,
+    # outputType: Optional[schemas.LookupOutputType] = Query(
+    outputType: schemas.LookupOutputType = Query(
+
+        schemas.LookupOutputType.cdx,
+            title='',
+
         description='Content type returned. CDX (default) or JSON.'    
     ),
     closest: Optional[str] = Query(
         None,
-        description="14-digit timestamp to aim for when sorting by closest (ignored otherwise). Format YYYYMMDDHHMMSS.",
+        description="14-digit timestamp to aim for when sorting by Closest. Format YYYYMMDDHHMMSS.",
         regex=schemas.path_ts.regex,
         min_length=schemas.path_ts.min_length,
         max_length=schemas.path_ts.max_length
@@ -102,19 +106,17 @@ async def lookup_url(
     ),
      from_date: Optional[str] = Query(
         None,
-        title="Start Date",
-        description="Start date to look for captures (format YYYYMMDDHHMMSS).",
-        regex=schemas.path_ts.regex,
-        min_length=schemas.path_ts.min_length,
-        max_length=schemas.path_ts.max_length
+        description=schemas.path_range_ts.description,
+        regex=schemas.path_range_ts.regex,
+        min_length=schemas.path_range_ts.min_length,
+        max_length=schemas.path_range_ts.max_length
     ),
     to_date: Optional[str] = Query(
         None,
-        title="End Date",
-        description="End date to look for captures (format YYYYMMDDHHMMSS).",
-        regex=schemas.path_ts.regex,
-        min_length=schemas.path_ts.min_length,
-        max_length=schemas.path_ts.max_length
+        description=schemas.path_range_ts.description,
+        regex=schemas.path_range_ts.regex,
+        min_length=schemas.path_range_ts.min_length,
+        max_length=schemas.path_range_ts.max_length
     ),
     collapse_type: Optional[schemas.CollapseType] = Query(
         schemas.CollapseType.default,
@@ -135,7 +137,9 @@ async def lookup_url(
     # Basic validation and derived parameters:
     if sort.value == "closest" and not closest:
         raise HTTPException(status_code=400, detail="Timestamp required for Closest sort.")
-    
+    if sort.value != "closest" and closest:
+        raise HTTPException(status_code=400, detail="Closest Sort required for Closest Timestamp.")
+
     collapse_param = None
     if collapse_type in ["collapseToFirst", "collapseToLast"]:
         if collapse_field:
@@ -156,7 +160,7 @@ async def lookup_url(
         'matchType': matchType.value,
         'sort': sort.value,
         'limit': limit,
-        'output': ("default" if outputType.value == "cdx" else outputType.value),
+        'output': "json" if outputType == "json" else None,
         'closest': closest if (closest and sort.value == "closest") else None,
         'from': from_date,
         'to': to_date
