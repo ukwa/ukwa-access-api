@@ -104,20 +104,10 @@ async def lookup_url(
         max_length=schemas.path_ts.max_length
         # example omitted as we don't want it being sent through by default
     ),
-     from_date: Optional[str] = Query(
-        None,
-        description=schemas.path_range_ts.description,
-        regex=schemas.path_range_ts.regex,
-        min_length=schemas.path_range_ts.min_length,
-        max_length=schemas.path_range_ts.max_length
-    ),
-    to_date: Optional[str] = Query(
-        None,
-        description=schemas.path_range_ts.description,
-        regex=schemas.path_range_ts.regex,
-        min_length=schemas.path_range_ts.min_length,
-        max_length=schemas.path_range_ts.max_length
-    ),
+
+    from_date: Optional[str] = schemas.create_query_from_path(schemas.path_range_ts),
+    to_date: Optional[str] = schemas.create_query_from_path(schemas.path_range_ts),
+
     collapse_type: Optional[schemas.CollapseType] = Query(
         schemas.CollapseType.default,
         description="Collapse to the first or last unique value of the specified field."
@@ -130,7 +120,6 @@ async def lookup_url(
         None,
         description="Length of the value to collapse on (eg. number of leading digits in timestamp) if collapse_field is specified."
     )
-
 
 ):
 

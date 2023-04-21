@@ -4,7 +4,7 @@ from typing import List, Optional, Any
 from pydantic import BaseModel, Field, AnyHttpUrl, EmailStr
 from pydantic.utils import GetterDict
 
-from fastapi import Path
+from fastapi import Path, Query
 
 class LookupMatchType(Enum):
     exact = 'exact'
@@ -56,8 +56,20 @@ path_url = Path(
 path_range_ts = Path(
     ...,
     description='Format YYYY, YYYYMM, etc., up to YYYYMMDDHHMMSS.',
-    example='19950630120000',
+    # example='19950630120000',
     min_length=4,  # Allow for partial matches
     max_length=14,
     regex="^\d{4,14}$",  # Allow 4-14 digits
 )
+
+# allows us to reuse the timestamp definition as a whole 
+# rather than having having to reference the attibutes each time
+def create_query_from_path(path: Path) -> Query:
+    return Query(
+        None,
+        description=path.description,
+        min_length=path.min_length,
+        max_length=path.max_length,
+        regex=path.regex,
+    )
+
