@@ -1,6 +1,7 @@
 name: Build, scan and push to Docker Hub
 
 on:
+  pull_request:
   push:
     tags:
       - '*'
