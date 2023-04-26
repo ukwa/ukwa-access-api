@@ -94,7 +94,9 @@ async def lookup_url(
         schemas.LookupOutputType.cdx,
             title='',
 
-        description='Content type returned. CDX (default) or JSON.'    
+        description='Content type returned. CDX (default) or JSON.',
+        alias='output'
+
     ),
     closest: Optional[str] = Query(
         None,
@@ -105,21 +107,11 @@ async def lookup_url(
         # example omitted as we don't want it being sent through by default
     ),
 
-    from_date: Optional[str] = schemas.create_query_from_path(schemas.path_range_ts),
-    to_date: Optional[str] = schemas.create_query_from_path(schemas.path_range_ts),
-
-    collapse_type: Optional[schemas.CollapseType] = Query(
-        schemas.CollapseType.default,
-        description="Collapse to the first or last unique value of the specified field."
-    ),
-    collapse_field: Optional[schemas.CollapseField] = Query(
-        schemas.CollapseField.default,
-        description="Field to collapse on if collapse_type is specified."
-    ),
-    collapse_length: Optional[int] = Query(
-        None,
-        description="Length of the value to collapse on (eg. number of leading digits in timestamp) if collapse_field is specified."
-    )
+    from_date: Optional[str] = schemas.create_query_param_from_path(schemas.path_range_ts, "from"),
+    to_date: Optional[str] = schemas.create_query_param_from_path(schemas.path_range_ts, "to"),
+    
+    collapseToFirst: str = schemas.create_query_param_from_path(schemas.path_collapse),
+    collapseToLast: str = schemas.create_query_param_from_path(schemas.path_collapse)
 
 ):
 
@@ -129,19 +121,21 @@ async def lookup_url(
     if sort.value != "closest" and closest:
         raise HTTPException(status_code=400, detail="Closest Sort required for Closest Timestamp.")
 
-    collapse_param = None
-    if collapse_type in ["collapseToFirst", "collapseToLast"]:
-        if collapse_field:
-            if collapse_length:
-                collapse_param = f"{collapse_field.value}:{collapse_length}"
-            else:
-                collapse_param = collapse_field.value        
-        else:
-            raise HTTPException(status_code=400, detail="collapse_field must be specified if collapse is specified")
-    else:
-        if collapse_field or collapse_length:
-            raise HTTPException(status_code=400, detail="collapse_field and collapse_length can only be specified if collapse is specified")
-    
+
+    ALLOWED_CDX_FIELDS = ["timestamp", "statuscode"]
+    ALLOWED_LENGTHS = range(1, 15)
+
+    valid_collapse_options = [f"{cdx_field}:{length}" for cdx_field in ALLOWED_CDX_FIELDS for length in ALLOWED_LENGTHS]
+
+    if collapseToFirst and collapseToLast:
+        raise HTTPException(status_code=400, detail="Only one of collapseToFirst or collapseToLast can be specified")
+
+    if collapseToFirst:
+        if collapseToFirst not in valid_collapse_options:
+            raise HTTPException(status_code=400, detail="Invalid collapseToFirst option")
+    elif collapseToLast:
+        if collapseToLast not in valid_collapse_options:
+            raise HTTPException(status_code=400, detail="Invalid collapseToLast option")
 
     # Only put through allowed parameters:
     params = {
@@ -152,12 +146,11 @@ async def lookup_url(
         'output': "json" if outputType == "json" else None,
         'closest': closest if (closest and sort.value == "closest") else None,
         'from': from_date,
-        'to': to_date
-        
+        'to': to_date,
+        'collapseToFirst': collapseToFirst,
+        'collapseToLast': collapseToLast
         }
     
-    if collapse_param:
-        params[collapse_type] = collapse_param
     
     # Open a streaming call to cdx.api.wa.bl.uk/data-heritrix and stream the results back...
     r = requests.request(

@@ -21,23 +21,6 @@ class LookupOutputType(str, Enum):
     cdx = 'cdx'
     json = 'json'
 
-
-class CollapseType(str, Enum):
-    default = ''
-    collapseToFirst = 'collapseToFirst'
-    collapseToLast = 'collapseToLast'
-
-class CollapseField(str, Enum):
-    default = ''
-    urlkey = 'urlkey'
-    timestamp = 'timestamp'
-    original = 'original'
-    mimetype = 'mimetype'
-    statuscode = 'statuscode'
-    digest = 'digest'
-    length = 'length'
-
-
 path_ts = Path(
         ...,
         description='The 14-digit timestamp to use as a target. Will go to the closest matching archived snapshot. Format YYYYMMDDHHMMSS.',
@@ -62,14 +45,24 @@ path_range_ts = Path(
     regex="^\d{4,14}$",  # Allow 4-14 digits
 )
 
+path_collapse = Path(
+    ...,
+    description= '''CDX Field to collapse on, optionally with :number suffix to collapse on substring of field; 
+                    in other words, return only the first/last row when of the series multiple consecutive rows
+                    have the same value for the supplied field. Example: "timestamp:4" 
+                    will return a single row per year (YYYY are the first 4 digits).''',
+    regex="^(timestamp|statuscode):\d{1,2}$"  # Allow 4-14 digits
+)
+
 # allows us to reuse the timestamp definition as a whole 
 # rather than having having to reference the attibutes each time
-def create_query_from_path(path: Path) -> Query:
-    return Query(
-        None,
-        description=path.description,
-        min_length=path.min_length,
-        max_length=path.max_length,
-        regex=path.regex,
-    )
-
+def create_query_param_from_path(path: Path, alias: Optional[str] = None) -> Query:
+    query_params = {
+        'description': path.description,
+        'min_length': path.min_length,
+        'max_length': path.max_length,
+        'regex': path.regex,
+    }
+    if alias is not None: # allow us to override for cdx params that might conflict with python keywords
+        query_params['alias'] = alias
+    return Query(None, **query_params)
