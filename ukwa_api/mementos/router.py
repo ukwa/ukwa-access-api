@@ -8,6 +8,7 @@ import logging
 import requests
 from enum import Enum
 from typing import List, Optional, Union
+from datetime import datetime
 
 from fastapi import Depends, FastAPI, HTTPException, APIRouter, status, Request, Response, Query
 from fastapi.encoders import jsonable_encoder
@@ -87,14 +88,55 @@ async def lookup_url(
         None, 
         description='Number of matching records to return.'
     ),
+    # outputType: Optional[schemas.LookupOutputType] = Query(
+    outputType: schemas.LookupOutputType = Query(
+
+        schemas.LookupOutputType.cdx,
+            title='',
+
+        description='Content type returned. CDX (default) or JSON.',
+        alias='output'
+
+    ),
+    closest: Optional[str] = Query(
+        None,
+        description="14-digit timestamp to aim for when sorting by Closest. Format YYYYMMDDHHMMSS.",
+        regex=schemas.path_ts.regex,
+        min_length=schemas.path_ts.min_length,
+        max_length=schemas.path_ts.max_length
+        # example omitted as we don't want it being sent through by default
+    ),
+
+    from_date: Optional[str] = schemas.create_query_param_from_path(schemas.path_range_ts, "from"),
+    to_date: Optional[str] = schemas.create_query_param_from_path(schemas.path_range_ts, "to"),
+    
+    collapseToFirst: str = schemas.create_query_param_from_path(schemas.path_collapse),
+    collapseToLast: str = schemas.create_query_param_from_path(schemas.path_collapse)
 ):
+
+    # Basic validation and derived parameters:
+    if sort.value == "closest" and not closest:
+        raise HTTPException(status_code=400, detail="Timestamp required for Closest sort.")
+    if sort.value != "closest" and closest:
+        raise HTTPException(status_code=400, detail="Closest Sort required for Closest Timestamp.")
+    if collapseToFirst and collapseToLast:
+        raise HTTPException(status_code=400, detail="Only one of collapseToFirst or collapseToLast can be specified")
+
     # Only put through allowed parameters:
     params = {
         'url': url,
         'matchType': matchType.value,
         'sort': sort.value,
         'limit': limit,
-    }
+        'output': "json" if outputType == "json" else None,
+        'closest': closest if (closest and sort.value == "closest") else None,
+        'from': from_date,
+        'to': to_date,
+        'collapseToFirst': collapseToFirst,
+        'collapseToLast': collapseToLast
+        }
+    
+    
     # Open a streaming call to cdx.api.wa.bl.uk/data-heritrix and stream the results back...
     r = requests.request(
         method='GET',
@@ -102,6 +144,12 @@ async def lookup_url(
         params=params,
         stream=True
         )
+    
+    # log url
+    logger.info("actual request url: ")
+    logger.info(r.url)
+    
+
     return StreamingResponse(r.iter_content(chunk_size=10*1024),
                 media_type=r.headers['Content-Type'])
 
