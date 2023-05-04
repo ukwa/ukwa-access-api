@@ -103,12 +103,3 @@ ENV/
 #vscode
 **/.vscode/
 
-
-#fastapi runtime
-
-#SQLAlchemy
-sql_app.db
-
-
-
-
