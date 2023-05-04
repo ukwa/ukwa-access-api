@@ -51,10 +51,13 @@ path_collapse = Path(
                     in other words, return only the first/last row when of the series multiple consecutive rows
                     have the same value for the supplied field. Example: "timestamp:4" 
                     will return a single row per year (YYYY are the first 4 digits).''',
-    regex="^(timestamp|statuscode):\d{1,2}$"  # Allow 4-14 digits
+    # Allow 4-14 digits for timestamp, 1-3 for status code
+    # note that in this case we are expecting a timestamp (string) _length_, 
+    # rather than an actual _timestamp_ (of varying length) so the timestamp regex is different            
+    regex="^(timestamp(:(1[0-4]|[4-9]))?|(statuscode(:[1-3])?))?$"
 )
 
-# allows us to reuse the timestamp definition as a whole 
+# allows us to reuse a basic param definition as a whole 
 # rather than having having to reference the attibutes each time
 def create_query_param_from_path(path: Path, alias: Optional[str] = None) -> Query:
     query_params = {
