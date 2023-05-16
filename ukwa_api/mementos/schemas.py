@@ -55,7 +55,7 @@ path_collapse = Path(
                     have the same value for the supplied field. Example: "timestamp:4" 
                     will return a single row per year (YYYY are the first 4 digits).''',          
     regex = (
-        r"^(statuscode:([1-3])|digest:(?:[1-9]|[1-3][0-9]|40)|urlkey:(?:[1-9]|[1-2][0-9]|30)|"
+        r"^(statuscode:([1-3])|digest:(?:[1-9]|[1-3][0-9]|40)|urlkey:([1-9][0-9]?)|"
         r"timestamp:(1[0-4]|[4-9])|mimetype:([1-9][0-9]?)|"
         r"original:([1-9][0-9]?)|redirecturl:([1-9][0-9]?)|"
         r"filename:([1-9][0-9]?)|robotflags:([1-9])|"
