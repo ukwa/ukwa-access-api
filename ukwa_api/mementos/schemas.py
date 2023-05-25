@@ -48,6 +48,7 @@ path_range_ts = Path(
 
 # note the pattern here is to specify the RANGE of leading characters or digits of the field value to be collapsed on
 # not to specify otherwise the pattern of the field value itself. see description below for timestamp example
+# it is more restrictive than the CDX endpoint, but meets sensible use cases following the CDX spec
 path_collapse = Path(
     ...,
     description= '''CDX Field to collapse on, optionally with :number suffix to collapse on substring of field; 
