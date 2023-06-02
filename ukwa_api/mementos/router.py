@@ -112,7 +112,6 @@ async def lookup_url(
     
     collapseToFirst: str = schemas.create_query_param_from_path(schemas.path_collapse),
     collapseToLast: str = schemas.create_query_param_from_path(schemas.path_collapse)
-
 ):
 
     # Basic validation and derived parameters:
@@ -120,22 +119,8 @@ async def lookup_url(
         raise HTTPException(status_code=400, detail="Timestamp required for Closest sort.")
     if sort.value != "closest" and closest:
         raise HTTPException(status_code=400, detail="Closest Sort required for Closest Timestamp.")
-
-
-    ALLOWED_CDX_FIELDS = ["timestamp", "statuscode"]
-    ALLOWED_LENGTHS = range(1, 15)
-
-    valid_collapse_options = [f"{cdx_field}:{length}" for cdx_field in ALLOWED_CDX_FIELDS for length in ALLOWED_LENGTHS]
-
     if collapseToFirst and collapseToLast:
         raise HTTPException(status_code=400, detail="Only one of collapseToFirst or collapseToLast can be specified")
-
-    if collapseToFirst:
-        if collapseToFirst not in valid_collapse_options:
-            raise HTTPException(status_code=400, detail="Invalid collapseToFirst option")
-    elif collapseToLast:
-        if collapseToLast not in valid_collapse_options:
-            raise HTTPException(status_code=400, detail="Invalid collapseToLast option")
 
     # Only put through allowed parameters:
     params = {
