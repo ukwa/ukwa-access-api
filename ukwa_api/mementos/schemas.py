@@ -61,7 +61,7 @@ path_collapse = Path(
         r"original:([1-9][0-9]?)|redirecturl:([1-9][0-9]?)|"
         r"filename:([1-9][0-9]?)|robotflags:([1-9])|"
         r"offset:(?:[1-9]|1[0-2])|length:(?:[1-9]|1[0-2])|"
-        r"(urlkey|timestamp|original|mimetype|statuscode|digest|length|offset|filename|redirect|robotflags)?)$"
+        r"(urlkey|timestamp|original|mimetype|statuscode|digest|length|offset|filename|redirecturl|robotflags)?)$"
 
     )
 )
